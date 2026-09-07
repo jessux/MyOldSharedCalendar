@@ -1,4 +1,4 @@
--- MyOldSharedCalendar - Supabase schema (version corrigee, sans recursion RLS)
+-- MyOldSharedCalendar - Supabase schema (version corrigee, sans recursion RLS ni probleme chicken-egg)
 -- Run this in the Supabase SQL editor.
 
 create extension if not exists "uuid-ossp";
@@ -103,8 +103,12 @@ create policy "profiles_self_update" on public.profiles
   for update using (auth.uid() = id);
 
 -- Households
+-- Note : le createur voit son foyer meme avant d'etre insere dans household_members
+-- (necessaire pour que insert(...).select() fonctionne juste apres la creation)
 create policy "households_member_select" on public.households
-  for select using (public.is_household_member(id));
+  for select using (
+    public.is_household_member(id) or auth.uid() = created_by
+  );
 create policy "households_creator_insert" on public.households
   for insert with check (auth.uid() = created_by);
 create policy "households_admin_update" on public.households
