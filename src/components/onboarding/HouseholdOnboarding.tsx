@@ -5,191 +5,169 @@ import { createBrowserClient } from "@/lib/supabase/browserClient";
 
 interface HouseholdOnboardingProps {
   userId: string;
-  onDone: () => void;
+  onComplete: () => void;
 }
 
-export function HouseholdOnboarding({ userId, onDone }: HouseholdOnboardingProps) {
-  const [mode, setMode] = useState<"create" | "join">("create");
-  const [name, setName] = useState("");
+type Mode = "choice" | "create" | "join";
+
+export function HouseholdOnboarding({ userId, onComplete }: HouseholdOnboardingProps) {
+  const [mode, setMode] = useState<Mode>("choice");
+  const [householdName, setHouseholdName] = useState("");
   const [inviteCode, setInviteCode] = useState("");
-  const [displayName, setDisplayName] = useState("");
-  const [color, setColor] = useState("#4f83cc");
-  const [submitting, setSubmitting] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
   const supabase = createBrowserClient();
 
-  const getCurrentUserId = async (): Promise<string> => {
-    const { data, error } = await supabase.auth.getUser();
-    if (error || !data.user) {
-      throw new Error("Session expiree ou invalide. Ferme et rouvre l'application.");
-    }
-    return data.user.id;
-  };
-
-  const ensureProfile = async (uid: string) => {
-    if (!displayName.trim()) throw new Error("Indique ton prenom.");
-    const { error } = await supabase
-      .from("profiles")
-      .upsert({ id: uid, display_name: displayName.trim() });
-    if (error) throw new Error(error.message);
-  };
-
   const handleCreate = async () => {
-    if (!name.trim()) {
-      setError("Donne un nom a ton foyer.");
+    if (!householdName.trim()) {
+      setError("Merci d'indiquer un nom de foyer.");
       return;
     }
-    setSubmitting(true);
+    setLoading(true);
     setError(null);
-    try {
-      const uid = await getCurrentUserId();
-      await ensureProfile(uid);
 
-      const { data: household, error: hErr } = await supabase
-        .from("households")
-        .insert({ name: name.trim(), created_by: uid })
-        .select()
-        .single();
-      if (hErr || !household) throw new Error(hErr?.message ?? "Erreur de creation.");
+    const { data: household, error: householdError } = await supabase
+      .from("households")
+      .insert({ name: householdName.trim(), created_by: userId })
+      .select()
+      .single();
 
-      const { error: mErr } = await supabase.from("household_members").insert({
-        household_id: household.id,
-        user_id: uid,
-        role: "admin",
-        color
-      });
-      if (mErr) throw new Error(mErr.message);
-
-      const { error: cErr } = await supabase.from("calendars").insert({
-        household_id: household.id,
-        name: "Famille",
-        color
-      });
-      if (cErr) throw new Error(cErr.message);
-
-      onDone();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Erreur inattendue.");
-    } finally {
-      setSubmitting(false);
+    if (householdError || !household) {
+      setError("Impossible de créer le foyer. Réessaie.");
+      setLoading(false);
+      return;
     }
+
+    const { error: memberError } = await supabase
+      .from("household_members")
+      .insert({ household_id: household.id, user_id: userId, role: "admin" });
+
+    if (memberError) {
+      setError("Le foyer a été créé mais l'ajout du membre a échoué. Réessaie.");
+      setLoading(false);
+      return;
+    }
+
+    const { error: calendarError } = await supabase
+      .from("calendars")
+      .insert({ household_id: household.id, name: "Calendrier familial" });
+
+    if (calendarError) {
+      setError("Le foyer a été créé mais la création du calendrier a échoué.");
+      setLoading(false);
+      return;
+    }
+
+    setLoading(false);
+    onComplete();
   };
 
   const handleJoin = async () => {
-    if (!inviteCode.trim()) {
-      setError("Indique le code d'invitation.");
+    const trimmedCode = inviteCode.trim().toLowerCase();
+    if (!trimmedCode) {
+      setError("Merci de saisir un code d'invitation.");
       return;
     }
-    setSubmitting(true);
+    setLoading(true);
     setError(null);
-    try {
-      const uid = await getCurrentUserId();
-      await ensureProfile(uid);
 
-      const { data: household, error: hErr } = await supabase
-        .from("households")
-        .select("*")
-        .eq("invite_code", inviteCode.trim())
-        .single();
-      if (hErr || !household) throw new Error("Code d'invitation introuvable.");
+    const { data, error: rpcError } = await supabase.rpc("join_household_by_invite_code", {
+      p_invite_code: trimmedCode
+    });
 
-      const { error: mErr } = await supabase.from("household_members").insert({
-        household_id: household.id,
-        user_id: uid,
-        role: "member",
-        color
-      });
-      if (mErr) throw new Error(mErr.message);
-
-      onDone();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Erreur inattendue.");
-    } finally {
-      setSubmitting(false);
+    if (rpcError) {
+      if (rpcError.code === "P0002" || rpcError.message?.includes("invite_code_not_found")) {
+        setError("Code d'invitation introuvable. Vérifie qu'il est correctement saisi.");
+      } else {
+        setError("Une erreur est survenue. Réessaie.");
+      }
+      setLoading(false);
+      return;
     }
+
+    if (!data || data.length === 0) {
+      setError("Code d'invitation introuvable. Vérifie qu'il est correctement saisi.");
+      setLoading(false);
+      return;
+    }
+
+    setLoading(false);
+    onComplete();
   };
 
-  return (
-    <div className="min-h-screen bg-paper flex flex-col justify-center px-6 py-10 gap-6">
-      <div>
-        <h1 className="text-2xl font-bold text-ink">Bienvenue 👋</h1>
-        <p className="text-sm text-ink/60 mt-1">
-          Cree un foyer partage ou rejoins celui de ta famille.
-        </p>
-      </div>
-
-      <div className="flex rounded-full bg-line/40 p-1">
+  if (mode === "choice") {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-paper px-6">
+        <h1 className="text-xl font-bold text-ink text-center">Bienvenue sur ton calendrier familial</h1>
         <button
           type="button"
           onClick={() => setMode("create")}
-          className={`flex-1 rounded-full py-2 text-sm font-semibold ${
-            mode === "create" ? "bg-ink text-paper" : "text-ink/60"
-          }`}
+          className="w-full max-w-xs bg-ink text-paper rounded-lg py-3 font-semibold"
         >
-          Creer un foyer
+          Créer un foyer
         </button>
         <button
           type="button"
           onClick={() => setMode("join")}
-          className={`flex-1 rounded-full py-2 text-sm font-semibold ${
-            mode === "join" ? "bg-ink text-paper" : "text-ink/60"
-          }`}
+          className="w-full max-w-xs border border-line rounded-lg py-3 font-semibold text-ink"
         >
-          Rejoindre
+          Rejoindre un foyer existant
         </button>
       </div>
+    );
+  }
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
-
-      <label className="flex flex-col gap-1">
-        <span className="text-xs font-semibold text-ink/60 uppercase">Ton prenom</span>
+  if (mode === "create") {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-paper px-6">
+        <h1 className="text-lg font-bold text-ink text-center">Nom du foyer</h1>
         <input
-          value={displayName}
-          onChange={(e) => setDisplayName(e.target.value)}
-          placeholder="Ex : Gabriel"
-          className="rounded-lg border border-line px-3 py-2 bg-white text-ink"
+          type="text"
+          value={householdName}
+          onChange={(e) => setHouseholdName(e.target.value)}
+          placeholder="Ex. Famille Kahlouche"
+          className="w-full max-w-xs border border-line rounded-lg px-3 py-2 text-ink"
         />
-      </label>
+        {error && <p className="text-sm text-red-600 text-center">{error}</p>}
+        <button
+          type="button"
+          disabled={loading}
+          onClick={handleCreate}
+          className="w-full max-w-xs bg-ink text-paper rounded-lg py-3 font-semibold disabled:opacity-50"
+        >
+          {loading ? "Création…" : "Créer"}
+        </button>
+        <button type="button" onClick={() => setMode("choice")} className="text-sm text-ink/60 underline">
+          Retour
+        </button>
+      </div>
+    );
+  }
 
-      <label className="flex flex-col gap-1">
-        <span className="text-xs font-semibold text-ink/60 uppercase">Ta couleur</span>
-        <input
-          type="color"
-          value={color}
-          onChange={(e) => setColor(e.target.value)}
-          className="h-10 w-16 rounded-lg border border-line bg-white"
-        />
-      </label>
-
-      {mode === "create" ? (
-        <label className="flex flex-col gap-1">
-          <span className="text-xs font-semibold text-ink/60 uppercase">Nom du foyer</span>
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Ex : Famille Kahlouche"
-            className="rounded-lg border border-line px-3 py-2 bg-white text-ink"
-          />
-        </label>
-      ) : (
-        <label className="flex flex-col gap-1">
-          <span className="text-xs font-semibold text-ink/60 uppercase">Code d'invitation</span>
-          <input
-            value={inviteCode}
-            onChange={(e) => setInviteCode(e.target.value)}
-            placeholder="Ex : a1b2c3d4"
-            className="rounded-lg border border-line px-3 py-2 bg-white text-ink"
-          />
-        </label>
-      )}
-
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-paper px-6">
+      <h1 className="text-lg font-bold text-ink text-center">Code d'invitation</h1>
+      <input
+        type="text"
+        value={inviteCode}
+        onChange={(e) => setInviteCode(e.target.value)}
+        placeholder="Ex. 876b8fe0"
+        className="w-full max-w-xs border border-line rounded-lg px-3 py-2 text-ink tracking-wide"
+        autoCapitalize="none"
+        autoCorrect="off"
+      />
+      {error && <p className="text-sm text-red-600 text-center">{error}</p>}
       <button
         type="button"
-        disabled={submitting}
-        onClick={mode === "create" ? handleCreate : handleJoin}
-        className="rounded-full bg-ink text-paper py-3 font-semibold disabled:opacity-40"
+        disabled={loading}
+        onClick={handleJoin}
+        className="w-full max-w-xs bg-ink text-paper rounded-lg py-3 font-semibold disabled:opacity-50"
       >
-        {submitting ? "..." : mode === "create" ? "Creer mon foyer" : "Rejoindre le foyer"}
+        {loading ? "Recherche…" : "Rejoindre"}
+      </button>
+      <button type="button" onClick={() => setMode("choice")} className="text-sm text-ink/60 underline">
+        Retour
       </button>
     </div>
   );
