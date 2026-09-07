@@ -17,6 +17,7 @@ export function useAuth() {
       const { data } = await supabase.auth.getSession();
 
       if (data.session?.user) {
+        await ensureProfile(data.session.user.id);
         if (mounted) {
           setUser(data.session.user);
           setLoading(false);
@@ -28,6 +29,9 @@ export function useAuth() {
       signingInRef.current = true;
 
       const { data: anon, error } = await supabase.auth.signInAnonymously();
+      if (!error && anon.user) {
+        await ensureProfile(anon.user.id);
+      }
       if (mounted) {
         if (!error && anon.user) {
           setUser(anon.user);
@@ -36,10 +40,19 @@ export function useAuth() {
       }
     };
 
+    const ensureProfile = async (userId: string) => {
+      await supabase
+        .from("profiles")
+        .upsert({ id: userId, display_name: "Moi" }, { onConflict: "id", ignoreDuplicates: true });
+    };
+
     init();
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
+      if (session?.user) {
+        ensureProfile(session.user.id);
+      }
     });
 
     return () => {
