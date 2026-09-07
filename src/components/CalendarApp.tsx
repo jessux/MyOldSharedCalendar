@@ -189,6 +189,7 @@ export function CalendarApp({ userId }: CalendarAppProps) {
         onPrev={() => setReference((r) => previousMonth(r))}
         onNext={() => setReference((r) => nextMonth(r))}
         onToday={() => setReference(new Date())}
+        onSignOut={() => supabase.auth.signOut()}
       />
 
       <MemberFilterBar members={members} activeIds={activeMemberIds} onToggle={toggleMember} />
