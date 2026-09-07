@@ -5,12 +5,12 @@ import { createBrowserClient } from "@/lib/supabase/browserClient";
 
 interface HouseholdOnboardingProps {
   userId: string;
-  onComplete: () => void;
+  onDone: () => void;
 }
 
 type Mode = "choice" | "create" | "join";
 
-export function HouseholdOnboarding({ userId, onComplete }: HouseholdOnboardingProps) {
+export function HouseholdOnboarding({ userId, onDone }: HouseholdOnboardingProps) {
   const [mode, setMode] = useState<Mode>("choice");
   const [householdName, setHouseholdName] = useState("");
   const [inviteCode, setInviteCode] = useState("");
@@ -60,7 +60,7 @@ export function HouseholdOnboarding({ userId, onComplete }: HouseholdOnboardingP
     }
 
     setLoading(false);
-    onComplete();
+    onDone();
   };
 
   const handleJoin = async () => {
@@ -103,7 +103,7 @@ export function HouseholdOnboarding({ userId, onComplete }: HouseholdOnboardingP
     }
 
     setLoading(false);
-    onComplete();
+    onDone();
   };
 
   if (mode === "choice") {
