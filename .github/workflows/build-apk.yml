@@ -62,8 +62,10 @@ jobs:
           MAJOR=1
           MINOR=0
           PATCH=${{ github.run_number }}
+          VERSION_CODE=${{ github.run_number }}
           echo "version=v${MAJOR}.${MINOR}.${PATCH}" >> "$GITHUB_OUTPUT"
           echo "semver=${MAJOR}.${MINOR}.${PATCH}" >> "$GITHUB_OUTPUT"
+          echo "version_code=${VERSION_CODE}" >> "$GITHUB_OUTPUT"
 
       - name: Build web statique (Next.js export)
         run: npm run build
@@ -80,17 +82,66 @@ jobs:
           fi
           npx cap sync android
 
+      - name: Configurer la signature et les permissions Android
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          for variable in ANDROID_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
+            if [ -z "${!variable}" ]; then
+              echo "::error::Le secret $variable est manquant"
+              exit 1
+            fi
+          done
+
+          KEYSTORE_FILE="$RUNNER_TEMP/myoldsharedcalendar-release.keystore"
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE_FILE"
+          test -s "$KEYSTORE_FILE"
+
+          sed -i -E "s/versionCode [0-9]+/versionCode ${{ steps.version.outputs.version_code }}/" android/app/build.gradle
+          sed -i -E "s/versionName \"[^\"]+\"/versionName \"${{ steps.version.outputs.semver }}\"/" android/app/build.gradle
+
+          if ! grep -q "android.permission.REQUEST_INSTALL_PACKAGES" android/app/src/main/AndroidManifest.xml; then
+            sed -i '/<uses-permission android:name="android.permission.INTERNET" \/>/i\    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />' android/app/src/main/AndroidManifest.xml
+          fi
+
+          cat >> android/app/build.gradle <<'EOF'
+
+            android {
+              signingConfigs {
+                release {
+                  storeFile file(System.getenv("ANDROID_KEYSTORE_FILE"))
+                  storePassword System.getenv("ANDROID_KEYSTORE_PASSWORD")
+                  keyAlias System.getenv("ANDROID_KEY_ALIAS")
+                  keyPassword System.getenv("ANDROID_KEY_PASSWORD")
+                }
+              }
+              buildTypes {
+                release {
+                  signingConfig signingConfigs.release
+                }
+              }
+            }
+            EOF
+
       - name: Rendre gradlew executable
         run: chmod +x ./android/gradlew
 
-      - name: Build de l'APK debug
+      - name: Build de l'APK release signee
         working-directory: android
-        run: ./gradlew assembleDebug --no-daemon
+        env:
+          ANDROID_KEYSTORE_FILE: ${{ runner.temp }}/myoldsharedcalendar-release.keystore
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: ./gradlew assembleRelease --no-daemon
 
       - name: Renommer l'APK avec la version
         run: |
           mkdir -p dist
-          cp android/app/build/outputs/apk/debug/app-debug.apk \
+          cp android/app/build/outputs/apk/release/app-release.apk \
              "dist/MyOldSharedCalendar-${{ steps.version.outputs.version }}.apk"
 
       - name: Generer le changelog depuis le dernier tag
@@ -136,7 +187,7 @@ jobs:
 
             ---
             Build automatique depuis le commit ${{ github.sha }}.
-            APK debug. Verifiee automatiquement (checksum SHA-256) et proposee via la mise a jour dans l'application.
+            APK release signee. Verifiee automatiquement (checksum SHA-256) et proposee via la mise a jour dans l'application.
           files: |
             dist/MyOldSharedCalendar-${{ steps.version.outputs.version }}.apk
             dist/checksums.txt

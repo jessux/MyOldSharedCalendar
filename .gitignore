@@ -4,6 +4,8 @@ out
 .env
 .env.local
 .vercel
+*.jks
+*.keystore
 android
 ios
 *.log

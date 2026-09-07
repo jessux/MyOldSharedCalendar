@@ -73,6 +73,39 @@ Pour une distribution via le Google Play Store, il faudra en plus créer un
 keystore de signature release et suivre le processus de publication
 standard (fiche store, captures d'écran, politique de confidentialité).
 
+## Publier une release Android via GitHub Actions
+
+Le workflow `.github/workflows/build-apk.yml` produit une APK release signée,
+avec un `versionCode` Android croissant, puis la publie dans une GitHub
+Release. Il utilise les secrets de l'environnement GitHub `production` :
+
+- `ANDROID_KEYSTORE_BASE64` : contenu du keystore encodé en base64
+- `ANDROID_KEYSTORE_PASSWORD` : mot de passe du keystore
+- `ANDROID_KEY_ALIAS` : alias de la clé de signature
+- `ANDROID_KEY_PASSWORD` : mot de passe de la clé
+
+Créer le keystore une seule fois, puis conserver le fichier et ses mots de
+passe en lieu sûr :
+
+```powershell
+keytool -genkeypair -v `
+   -keystore myoldsharedcalendar-release.jks `
+   -alias myoldsharedcalendar `
+   -keyalg RSA -keysize 2048 -validity 10000
+
+[Convert]::ToBase64String(
+   [IO.File]::ReadAllBytes(".\myoldsharedcalendar-release.jks")
+)
+```
+
+Ajouter la valeur base64 et les trois mots de passe/identifiants dans
+`Settings` → `Environments` → `production` → `Secrets and variables` →
+`Actions`. Le keystore `.jks` ne doit jamais être commité.
+
+La première installation release doit remplacer une APK release signée avec
+ce même keystore. Une APK debug précédemment installée devra être désinstallée
+une fois, car elle n'a pas la même signature.
+
 ## Modèle de données
 
 Voir `supabase/schema.sql` pour le détail complet des tables :
