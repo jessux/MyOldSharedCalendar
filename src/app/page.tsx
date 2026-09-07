@@ -2,19 +2,14 @@
 
 import { useAuth } from "@/hooks/useAuth";
 import { useHousehold } from "@/hooks/useHousehold";
-import { LoginScreen } from "@/components/auth/LoginScreen";
 import { HouseholdOnboarding } from "@/components/onboarding/HouseholdOnboarding";
 import { CalendarApp } from "@/components/CalendarApp";
 
 export default function HomePage() {
   const { user, loading } = useAuth();
 
-  if (loading) {
+  if (loading || !user) {
     return <div className="flex items-center justify-center h-screen text-ink/50">Chargement…</div>;
-  }
-
-  if (!user) {
-    return <LoginScreen />;
   }
 
   return <AuthenticatedArea userId={user.id} />;

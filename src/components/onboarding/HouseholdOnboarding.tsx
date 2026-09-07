@@ -16,10 +16,11 @@ export function HouseholdOnboarding({ userId, onDone }: HouseholdOnboardingProps
   const [color, setColor] = useState("#4f83cc");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [createdInviteCode, setCreatedInviteCode] = useState<string | null>(null);
   const supabase = createBrowserClient();
 
   const ensureProfile = async () => {
-    if (!displayName.trim()) throw new Error("Indique ton prénom.");
+    if (!displayName.trim()) throw new Error("Indique ton prenom.");
     const { error } = await supabase
       .from("profiles")
       .upsert({ id: userId, display_name: displayName.trim() });
@@ -28,7 +29,7 @@ export function HouseholdOnboarding({ userId, onDone }: HouseholdOnboardingProps
 
   const handleCreate = async () => {
     if (!name.trim()) {
-      setError("Donne un nom à ton foyer.");
+      setError("Donne un nom a ton foyer.");
       return;
     }
     setSubmitting(true);
@@ -41,7 +42,7 @@ export function HouseholdOnboarding({ userId, onDone }: HouseholdOnboardingProps
         .insert({ name: name.trim(), created_by: userId })
         .select()
         .single();
-      if (hErr || !household) throw new Error(hErr?.message ?? "Erreur de création.");
+      if (hErr || !household) throw new Error(hErr?.message ?? "Erreur de creation.");
 
       const { error: mErr } = await supabase.from("household_members").insert({
         household_id: household.id,
@@ -58,7 +59,7 @@ export function HouseholdOnboarding({ userId, onDone }: HouseholdOnboardingProps
       });
       if (cErr) throw new Error(cErr.message);
 
-      onDone();
+      setCreatedInviteCode(household.invite_code);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur inattendue.");
     } finally {
@@ -99,12 +100,56 @@ export function HouseholdOnboarding({ userId, onDone }: HouseholdOnboardingProps
     }
   };
 
+  if (createdInviteCode) {
+    const shareText = `Rejoins mon calendrier familial sur MyOldSharedCalendar ! Code d'invitation : ${createdInviteCode}`;
+
+    const handleShare = async () => {
+      if (navigator.share) {
+        try {
+          await navigator.share({ text: shareText });
+        } catch {
+          // partage annule, rien a faire
+        }
+      } else {
+        await navigator.clipboard.writeText(shareText);
+      }
+    };
+
+    return (
+      <div className="min-h-screen bg-paper flex flex-col justify-center px-6 py-10 gap-6">
+        <div>
+          <h1 className="text-2xl font-bold text-ink">Foyer cree ! 🎉</h1>
+          <p className="text-sm text-ink/60 mt-1">
+            Partage ce code avec ta famille pour qu'elle rejoigne le calendrier.
+          </p>
+        </div>
+
+        <div className="rounded-xl border-2 border-dashed border-line bg-white py-6 px-4 text-center">
+          <p className="text-xs font-semibold text-ink/60 uppercase mb-1">Code d'invitation</p>
+          <p className="text-3xl font-bold tracking-widest text-ink">{createdInviteCode}</p>
+        </div>
+
+        <button
+          type="button"
+          onClick={handleShare}
+          className="rounded-full bg-ink text-paper py-3 font-semibold"
+        >
+          Partager le code
+        </button>
+
+        <button type="button" onClick={onDone} className="text-sm text-ink/60">
+          Continuer vers le calendrier
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-paper flex flex-col justify-center px-6 py-10 gap-6">
       <div>
         <h1 className="text-2xl font-bold text-ink">Bienvenue 👋</h1>
         <p className="text-sm text-ink/60 mt-1">
-          Crée un foyer partagé ou rejoins celui de ta famille.
+          Cree un foyer partage ou rejoins celui de ta famille avec un code.
         </p>
       </div>
 
@@ -116,7 +161,7 @@ export function HouseholdOnboarding({ userId, onDone }: HouseholdOnboardingProps
             mode === "create" ? "bg-ink text-paper" : "text-ink/60"
           }`}
         >
-          Créer un foyer
+          Creer un foyer
         </button>
         <button
           type="button"
@@ -132,7 +177,7 @@ export function HouseholdOnboarding({ userId, onDone }: HouseholdOnboardingProps
       {error && <p className="text-sm text-red-600">{error}</p>}
 
       <label className="flex flex-col gap-1">
-        <span className="text-xs font-semibold text-ink/60 uppercase">Ton prénom</span>
+        <span className="text-xs font-semibold text-ink/60 uppercase">Ton prenom</span>
         <input
           value={displayName}
           onChange={(e) => setDisplayName(e.target.value)}
@@ -179,7 +224,7 @@ export function HouseholdOnboarding({ userId, onDone }: HouseholdOnboardingProps
         onClick={mode === "create" ? handleCreate : handleJoin}
         className="rounded-full bg-ink text-paper py-3 font-semibold disabled:opacity-40"
       >
-        {submitting ? "..." : mode === "create" ? "Créer mon foyer" : "Rejoindre le foyer"}
+        {submitting ? "..." : mode === "create" ? "Creer mon foyer" : "Rejoindre le foyer"}
       </button>
     </div>
   );

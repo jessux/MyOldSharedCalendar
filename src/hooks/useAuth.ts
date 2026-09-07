@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { createBrowserClient } from "@/lib/supabase/browserClient";
 
@@ -12,11 +12,31 @@ export function useAuth() {
   useEffect(() => {
     let mounted = true;
 
-    supabase.auth.getSession().then(({ data }) => {
+    async function ensureSession() {
+      const { data } = await supabase.auth.getSession();
+
+      if (data.session?.user) {
+        if (mounted) {
+          setUser(data.session.user);
+          setLoading(false);
+        }
+        return;
+      }
+
+      const { data: anonData, error } = await supabase.auth.signInAnonymously();
       if (!mounted) return;
-      setUser(data.session?.user ?? null);
+
+      if (error) {
+        console.error("Connexion anonyme impossible :", error.message);
+        setLoading(false);
+        return;
+      }
+
+      setUser(anonData.user ?? null);
       setLoading(false);
-    });
+    }
+
+    ensureSession();
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
@@ -28,34 +48,5 @@ export function useAuth() {
     };
   }, [supabase]);
 
-  const sendOtpCode = useCallback(
-    async (email: string) => {
-      const { error } = await supabase.auth.signInWithOtp({
-        email,
-        options: {
-          shouldCreateUser: true
-        }
-      });
-      if (error) throw error;
-    },
-    [supabase]
-  );
-
-  const verifyOtpCode = useCallback(
-    async (email: string, token: string) => {
-      const { error } = await supabase.auth.verifyOtp({
-        email,
-        token,
-        type: "email"
-      });
-      if (error) throw error;
-    },
-    [supabase]
-  );
-
-  const signOut = useCallback(async () => {
-    await supabase.auth.signOut();
-  }, [supabase]);
-
-  return { user, loading, sendOtpCode, verifyOtpCode, signOut };
+  return { user, loading };
 }
