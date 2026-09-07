@@ -1,4 +1,4 @@
--- MyOldSharedCalendar - Supabase schema
+-- MyOldSharedCalendar - Supabase schema (version corrigee, sans recursion RLS)
 -- Run this in the Supabase SQL editor.
 
 create extension if not exists "uuid-ossp";
@@ -62,6 +62,39 @@ alter table public.household_members enable row level security;
 alter table public.calendars enable row level security;
 alter table public.events enable row level security;
 
+-- Fonctions SECURITY DEFINER : evitent toute recursion RLS sur household_members
+create or replace function public.is_household_member(hid uuid)
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select exists (
+    select 1 from public.household_members
+    where household_id = hid and user_id = auth.uid()
+  );
+$$;
+
+create or replace function public.is_household_admin(hid uuid)
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select exists (
+    select 1 from public.household_members
+    where household_id = hid and user_id = auth.uid() and role = 'admin'
+  );
+$$;
+
+revoke all on function public.is_household_member(uuid) from public;
+grant execute on function public.is_household_member(uuid) to authenticated, anon;
+revoke all on function public.is_household_admin(uuid) from public;
+grant execute on function public.is_household_admin(uuid) to authenticated, anon;
+
+-- Profiles
 create policy "profiles_self_select" on public.profiles
   for select using (auth.uid() = id);
 create policy "profiles_self_upsert" on public.profiles
@@ -69,62 +102,28 @@ create policy "profiles_self_upsert" on public.profiles
 create policy "profiles_self_update" on public.profiles
   for update using (auth.uid() = id);
 
+-- Households
 create policy "households_member_select" on public.households
-  for select using (
-    exists (
-      select 1 from public.household_members hm
-      where hm.household_id = households.id and hm.user_id = auth.uid()
-    )
-  );
+  for select using (public.is_household_member(id));
 create policy "households_creator_insert" on public.households
   for insert with check (auth.uid() = created_by);
 create policy "households_admin_update" on public.households
-  for update using (
-    exists (
-      select 1 from public.household_members hm
-      where hm.household_id = households.id
-        and hm.user_id = auth.uid()
-        and hm.role = 'admin'
-    )
-  );
+  for update using (public.is_household_admin(id));
 
+-- Household members (utilise la fonction, jamais de sous-requete directe sur elle-meme)
 create policy "members_select" on public.household_members
-  for select using (
-    exists (
-      select 1 from public.household_members hm
-      where hm.household_id = household_members.household_id
-        and hm.user_id = auth.uid()
-    )
-  );
+  for select using (public.is_household_member(household_id));
 create policy "members_self_insert" on public.household_members
   for insert with check (auth.uid() = user_id);
 
+-- Calendars
 create policy "calendars_member_select" on public.calendars
-  for select using (
-    exists (
-      select 1 from public.household_members hm
-      where hm.household_id = calendars.household_id and hm.user_id = auth.uid()
-    )
-  );
+  for select using (public.is_household_member(household_id));
 create policy "calendars_member_write" on public.calendars
-  for all using (
-    exists (
-      select 1 from public.household_members hm
-      where hm.household_id = calendars.household_id and hm.user_id = auth.uid()
-    )
-  );
+  for all using (public.is_household_member(household_id));
 
+-- Events
 create policy "events_member_select" on public.events
-  for select using (
-    exists (
-      select 1 from public.household_members hm
-      where hm.household_id = events.household_id and hm.user_id = auth.uid()
-    )
-  );
+  for select using (public.is_household_member(household_id));
 create policy "events_member_write" on public.events
-  for all using (
-    exists (
-      select 1 from public.household_members hm
-      where hm.household_id = events.household_id and hm.user_id = auth.uid()
-    )
-  );
+  for all using (public.is_household_member(household_id));
