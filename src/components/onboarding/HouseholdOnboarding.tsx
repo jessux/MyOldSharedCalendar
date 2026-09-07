@@ -10,12 +10,40 @@ interface HouseholdOnboardingProps {
 
 type Mode = "choice" | "create" | "join";
 
+const MEMBER_COLORS = [
+  "#4f83cc",
+  "#c65146",
+  "#4f9b6e",
+  "#d69a3a",
+  "#8a5fb0",
+  "#3a8fa3"
+];
+
 export function HouseholdOnboarding({ userId, onDone }: HouseholdOnboardingProps) {
   const [mode, setMode] = useState<Mode>("choice");
   const [householdName, setHouseholdName] = useState("");
   const [inviteCode, setInviteCode] = useState("");
+  const [color, setColor] = useState(MEMBER_COLORS[0]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const colorPicker = (
+    <div className="flex flex-col items-center gap-2">
+      <p className="text-sm text-ink/70">Ta couleur</p>
+      <div className="flex gap-2">
+        {MEMBER_COLORS.map((c) => (
+          <button
+            key={c}
+            type="button"
+            onClick={() => setColor(c)}
+            aria-label={`Choisir la couleur ${c}`}
+            className="w-8 h-8 rounded-full border-2"
+            style={{ backgroundColor: c, borderColor: c === color ? "#2b2622" : "transparent" }}
+          />
+        ))}
+      </div>
+    </div>
+  );
 
   const supabase = createBrowserClient();
 
@@ -41,7 +69,7 @@ export function HouseholdOnboarding({ userId, onDone }: HouseholdOnboardingProps
 
     const { error: memberError } = await supabase
       .from("household_members")
-      .insert({ household_id: household.id, user_id: userId, role: "admin" });
+      .insert({ household_id: household.id, user_id: userId, role: "admin", color });
 
     if (memberError) {
       setError("Le foyer a été créé mais l'ajout du membre a échoué. Réessaie.");
@@ -83,7 +111,8 @@ export function HouseholdOnboarding({ userId, onDone }: HouseholdOnboardingProps
     };
 
     const { data, error: rpcError } = await rpcClient.rpc("join_household_by_invite_code", {
-      p_invite_code: trimmedCode
+      p_invite_code: trimmedCode,
+      p_color: color
     });
 
     if (rpcError) {
@@ -139,6 +168,7 @@ export function HouseholdOnboarding({ userId, onDone }: HouseholdOnboardingProps
           placeholder="Ex. Famille Kahlouche"
           className="w-full max-w-xs border border-line rounded-lg px-3 py-2 text-ink"
         />
+        {colorPicker}
         {error && <p className="text-sm text-red-600 text-center">{error}</p>}
         <button
           type="button"
@@ -167,6 +197,7 @@ export function HouseholdOnboarding({ userId, onDone }: HouseholdOnboardingProps
         autoCapitalize="none"
         autoCorrect="off"
       />
+      {colorPicker}
       {error && <p className="text-sm text-red-600 text-center">{error}</p>}
       <button
         type="button"

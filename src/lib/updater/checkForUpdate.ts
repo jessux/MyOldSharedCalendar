@@ -29,6 +29,16 @@ function isNewer(remote: string, local: string): boolean {
   return rPatch > lPatch;
 }
 
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  const chunkSize = 0x8000;
+  let binary = "";
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+  }
+  return btoa(binary);
+}
+
 async function sha256Hex(data: ArrayBuffer): Promise<string> {
   const digest = await crypto.subtle.digest("SHA-256", data);
   return Array.from(new Uint8Array(digest))
@@ -78,9 +88,7 @@ export async function checkForUpdate(currentVersion: string): Promise<void> {
     return;
   }
 
-  const base64 = btoa(
-    new Uint8Array(apkBuffer).reduce((acc, byte) => acc + String.fromCharCode(byte), "")
-  );
+  const base64 = arrayBufferToBase64(apkBuffer);
 
   const written = await Filesystem.writeFile({
     path: APK_FILENAME,

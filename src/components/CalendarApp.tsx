@@ -153,8 +153,8 @@ export function CalendarApp({ userId }: CalendarAppProps) {
   }
 
   return (
-    <div className="min-h-screen bg-paper pb-6">
-      <div className="flex items-center justify-between px-3 pt-2 gap-2">
+    <div className="calendar-board min-h-screen bg-paper pb-6 shadow-cardboard">
+      <div className="flex items-center justify-between px-3 pt-6 gap-2">
         <span className="text-xs font-semibold text-ink/50 truncate">{household.name}</span>
         <div className="flex items-center gap-2">
           <select

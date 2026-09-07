@@ -3,10 +3,53 @@
 @tailwind utilities;
 
 html, body {
-  background-color: #faf7f0;
+  background-color: #f4ecd8;
   -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  background-image:
+    radial-gradient(rgba(43, 38, 34, 0.05) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(43, 38, 34, 0.04), rgba(43, 38, 34, 0));
+  background-size: 6px 6px, 100% 100%;
 }
 
 button {
   touch-action: manipulation;
+}
+
+.calendar-board {
+  position: relative;
+  border: 1px solid rgba(43, 38, 34, 0.15);
+  border-radius: 4px;
+  background: #f4ecd8;
+}
+
+.calendar-board::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 22px;
+  border-radius: 4px 4px 0 0;
+  background: repeating-linear-gradient(
+    90deg,
+    #d8c39a 0 18px,
+    #c9b98e 18px 20px
+  );
+  border-bottom: 1px solid rgba(43, 38, 34, 0.2);
+}
+
+.calendar-board::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 6px;
+  height: 10px;
+  background-image: radial-gradient(circle, rgba(43, 38, 34, 0.35) 2px, transparent 2.5px);
+  background-size: 26px 10px;
+  background-repeat: repeat-x;
+  background-position: 13px 0;
 }
