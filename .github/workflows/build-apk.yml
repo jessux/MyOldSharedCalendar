@@ -5,9 +5,12 @@ on:
     branches: [main]
   workflow_dispatch: {}
 
+permissions:
+  contents: write
+
 jobs:
   build-apk:
-    name: Build debug APK
+    name: Build debug APK et publier une Release
     runs-on: ubuntu-latest
 
     steps:
@@ -52,9 +55,27 @@ jobs:
         working-directory: android
         run: ./gradlew assembleDebug --no-daemon
 
+      - name: Renommer l'APK avec le numero de run
+        run: |
+          mkdir -p dist
+          cp android/app/build/outputs/apk/debug/app-debug.apk \
+             dist/MyOldSharedCalendar-debug-${{ github.run_number }}.apk
+
       - name: Publication de l'APK en artifact
         uses: actions/upload-artifact@v4
         with:
           name: MyOldSharedCalendar-debug-apk
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          path: dist/MyOldSharedCalendar-debug-${{ github.run_number }}.apk
           retention-days: 30
+
+      - name: Creation de la Release GitHub avec l'APK
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: "Build APK #${{ github.run_number }}"
+          body: |
+            APK genere automatiquement depuis le commit ${{ github.sha }}.
+            Build debug, a installer manuellement sur Android (source inconnue autorisee).
+          files: dist/MyOldSharedCalendar-debug-${{ github.run_number }}.apk
+          draft: false
+          prerelease: true
