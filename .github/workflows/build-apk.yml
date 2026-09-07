@@ -10,12 +10,14 @@ permissions:
 
 jobs:
   build-apk:
-    name: Build debug APK et publier une Release
+    name: Build APK et publier une Release
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout du code
+      - name: Checkout du code (historique complet pour le changelog)
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Configuration Node.js
         uses: actions/setup-node@v4
@@ -55,27 +57,57 @@ jobs:
         working-directory: android
         run: ./gradlew assembleDebug --no-daemon
 
-      - name: Renommer l'APK avec le numero de run
+      - name: Calcul du numero de version (semver simplifie)
+        id: version
+        run: |
+          MAJOR=1
+          MINOR=0
+          PATCH=${{ github.run_number }}
+          echo "version=v${MAJOR}.${MINOR}.${PATCH}" >> "$GITHUB_OUTPUT"
+
+      - name: Renommer l'APK avec la version
         run: |
           mkdir -p dist
           cp android/app/build/outputs/apk/debug/app-debug.apk \
-             dist/MyOldSharedCalendar-debug-${{ github.run_number }}.apk
+             "dist/MyOldSharedCalendar-${{ steps.version.outputs.version }}.apk"
+
+      - name: Generer le changelog depuis le dernier tag
+        id: changelog
+        run: |
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          if [ -z "$PREV_TAG" ]; then
+            echo "log<<EOF" >> "$GITHUB_OUTPUT"
+            git log --pretty=format:"- %s (%h)" >> "$GITHUB_OUTPUT"
+            echo "" >> "$GITHUB_OUTPUT"
+            echo "EOF" >> "$GITHUB_OUTPUT"
+          else
+            echo "log<<EOF" >> "$GITHUB_OUTPUT"
+            git log --pretty=format:"- %s (%h)" "$PREV_TAG"..HEAD >> "$GITHUB_OUTPUT"
+            echo "" >> "$GITHUB_OUTPUT"
+            echo "EOF" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Publication de l'APK en artifact
         uses: actions/upload-artifact@v4
         with:
-          name: MyOldSharedCalendar-debug-apk
-          path: dist/MyOldSharedCalendar-debug-${{ github.run_number }}.apk
-          retention-days: 30
+          name: MyOldSharedCalendar-${{ steps.version.outputs.version }}
+          path: dist/MyOldSharedCalendar-${{ steps.version.outputs.version }}.apk
+          retention-days: 90
 
       - name: Creation de la Release GitHub avec l'APK
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: build-${{ github.run_number }}
-          name: "Build APK #${{ github.run_number }}"
+          tag_name: ${{ steps.version.outputs.version }}
+          name: "MyOldSharedCalendar ${{ steps.version.outputs.version }}"
           body: |
-            APK genere automatiquement depuis le commit ${{ github.sha }}.
-            Build debug, a installer manuellement sur Android (source inconnue autorisee).
-          files: dist/MyOldSharedCalendar-debug-${{ github.run_number }}.apk
+            ## Changements
+
+            ${{ steps.changelog.outputs.log }}
+
+            ---
+            Build automatique depuis le commit ${{ github.sha }}.
+            APK debug, a installer manuellement (autoriser les sources inconnues sur Android).
+          files: dist/MyOldSharedCalendar-${{ steps.version.outputs.version }}.apk
           draft: false
-          prerelease: true
+          prerelease: false
+          generate_release_notes: false
