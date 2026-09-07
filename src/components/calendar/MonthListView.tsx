@@ -4,15 +4,24 @@ import clsx from "clsx";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import type { DayCell } from "@/lib/calendar/monthGrid";
+import { getPublicHolidayName } from "@/lib/calendar/publicHolidays";
+import { getSchoolHolidayName, type SchoolZone } from "@/lib/calendar/schoolHolidays";
 
 interface MonthListViewProps {
   cells: DayCell[];
   memberColors: Record<string, string>;
   selectedDate: Date | null;
   onSelectDate: (date: Date) => void;
+  schoolZone: SchoolZone;
 }
 
-export function MonthListView({ cells, memberColors, selectedDate, onSelectDate }: MonthListViewProps) {
+export function MonthListView({
+  cells,
+  memberColors,
+  selectedDate,
+  onSelectDate,
+  schoolZone
+}: MonthListViewProps) {
   const currentMonthCells = cells.filter((c) => c.isCurrentMonth);
 
   return (
@@ -21,6 +30,8 @@ export function MonthListView({ cells, memberColors, selectedDate, onSelectDate 
         const isSelected =
           !!selectedDate && selectedDate.toDateString() === cell.date.toDateString();
         const isWeekend = cell.date.getDay() === 0 || cell.date.getDay() === 6;
+        const holidayName = getPublicHolidayName(cell.date);
+        const vacationName = getSchoolHolidayName(cell.date, schoolZone);
 
         return (
           <button
@@ -29,7 +40,8 @@ export function MonthListView({ cells, memberColors, selectedDate, onSelectDate 
             onClick={() => onSelectDate(cell.date)}
             className={clsx(
               "flex items-stretch gap-3 px-3 py-2 text-left min-h-[56px]",
-              isWeekend && "bg-line/10",
+              vacationName && "bg-amber-50",
+              isWeekend && !vacationName && "bg-line/10",
               isSelected && "ring-2 ring-inset ring-ink/70",
               cell.isToday && "bg-ink/5"
             )}
@@ -38,7 +50,7 @@ export function MonthListView({ cells, memberColors, selectedDate, onSelectDate 
               <span
                 className={clsx(
                   "text-xl font-bold w-9 h-9 flex items-center justify-center rounded-full",
-                  cell.isToday ? "bg-ink text-paper" : "text-ink"
+                  cell.isToday ? "bg-ink text-paper" : holidayName ? "text-red-600" : "text-ink"
                 )}
               >
                 {cell.date.getDate()}
@@ -49,7 +61,17 @@ export function MonthListView({ cells, memberColors, selectedDate, onSelectDate 
             </div>
 
             <div className="flex-1 flex flex-col justify-center gap-1 min-w-0">
-              {cell.events.length === 0 ? (
+              {holidayName && (
+                <span className="text-[11px] font-semibold text-red-600 truncate">
+                  {holidayName}
+                </span>
+              )}
+              {vacationName && (
+                <span className="text-[11px] font-semibold text-amber-700 truncate">
+                  {vacationName}
+                </span>
+              )}
+              {cell.events.length === 0 && !holidayName && !vacationName ? (
                 <span className="text-xs text-ink/30 italic">—</span>
               ) : (
                 cell.events.map((event) => (

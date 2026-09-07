@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { buildMonthGrid, monthLabel, nextMonth, previousMonth } from "@/lib/calendar/monthGrid";
+import type { SchoolZone } from "@/lib/calendar/schoolHolidays";
 import { MonthHeader } from "./calendar/MonthHeader";
 import { MonthGrid } from "./calendar/MonthGrid";
 import { MonthListView } from "./calendar/MonthListView";
@@ -20,15 +21,36 @@ interface CalendarAppProps {
 
 type ViewMode = "list" | "grid";
 
+const SCHOOL_ZONE_STORAGE_KEY = "myoldsharedcalendar_school_zone";
+
+function loadStoredZone(): SchoolZone {
+  if (typeof window === "undefined") return "C";
+  const stored = window.localStorage.getItem(SCHOOL_ZONE_STORAGE_KEY);
+  if (stored === "A" || stored === "B" || stored === "C") return stored;
+  return "C";
+}
+
 export function CalendarApp({ userId }: CalendarAppProps) {
   const [reference, setReference] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [activeMemberIds, setActiveMemberIds] = useState<Set<string>>(new Set());
   const [showShareSheet, setShowShareSheet] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("list");
+  const [schoolZone, setSchoolZone] = useState<SchoolZone>("C");
   const [formState, setFormState] = useState<
     { mode: "create" } | { mode: "edit"; event: CalendarEvent } | null
   >(null);
+
+  useEffect(() => {
+    setSchoolZone(loadStoredZone());
+  }, []);
+
+  const changeZone = (zone: SchoolZone) => {
+    setSchoolZone(zone);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(SCHOOL_ZONE_STORAGE_KEY, zone);
+    }
+  };
 
   const { household, members, calendars, loading: householdLoading } = useHousehold(userId);
   const { events, loading: eventsLoading, refresh } = useMonthEvents(household?.id, reference);
@@ -126,20 +148,30 @@ export function CalendarApp({ userId }: CalendarAppProps) {
 
   return (
     <div className="min-h-screen bg-paper pb-6">
-      <div className="flex items-center justify-between px-3 pt-2">
+      <div className="flex items-center justify-between px-3 pt-2 gap-2">
         <span className="text-xs font-semibold text-ink/50 truncate">{household.name}</span>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
+          <select
+            value={schoolZone}
+            onChange={(e) => changeZone(e.target.value as SchoolZone)}
+            className="text-xs font-semibold text-ink bg-transparent border border-line rounded px-1"
+            title="Zone scolaire"
+          >
+            <option value="A">Zone A</option>
+            <option value="B">Zone B</option>
+            <option value="C">Zone C</option>
+          </select>
           <button
             type="button"
             onClick={() => setViewMode((v) => (v === "list" ? "grid" : "list"))}
-            className="text-xs font-semibold text-ink underline"
+            className="text-xs font-semibold text-ink underline whitespace-nowrap"
           >
             {viewMode === "list" ? "Vue grille" : "Vue liste"}
           </button>
           <button
             type="button"
             onClick={() => setShowShareSheet(true)}
-            className="text-xs font-semibold text-ink underline"
+            className="text-xs font-semibold text-ink underline whitespace-nowrap"
           >
             Partager
           </button>
@@ -164,6 +196,7 @@ export function CalendarApp({ userId }: CalendarAppProps) {
             memberColors={memberColors}
             selectedDate={selectedDate}
             onSelectDate={setSelectedDate}
+            schoolZone={schoolZone}
           />
         ) : (
           <MonthGrid
