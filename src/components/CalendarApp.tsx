@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { buildMonthGrid, monthLabel, nextMonth, previousMonth } from "@/lib/calendar/monthGrid";
 import { MonthHeader } from "./calendar/MonthHeader";
 import { MonthGrid } from "./calendar/MonthGrid";
+import { MonthListView } from "./calendar/MonthListView";
 import { MemberFilterBar } from "./calendar/MemberFilterBar";
 import { DayDetailSheet } from "./calendar/DayDetailSheet";
 import { EventFormSheet, type EventFormValues } from "./calendar/EventFormSheet";
@@ -17,11 +18,14 @@ interface CalendarAppProps {
   userId: string;
 }
 
+type ViewMode = "list" | "grid";
+
 export function CalendarApp({ userId }: CalendarAppProps) {
   const [reference, setReference] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [activeMemberIds, setActiveMemberIds] = useState<Set<string>>(new Set());
   const [showShareSheet, setShowShareSheet] = useState(false);
+  const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [formState, setFormState] = useState<
     { mode: "create" } | { mode: "edit"; event: CalendarEvent } | null
   >(null);
@@ -124,13 +128,22 @@ export function CalendarApp({ userId }: CalendarAppProps) {
     <div className="min-h-screen bg-paper pb-6">
       <div className="flex items-center justify-between px-3 pt-2">
         <span className="text-xs font-semibold text-ink/50 truncate">{household.name}</span>
-        <button
-          type="button"
-          onClick={() => setShowShareSheet(true)}
-          className="text-xs font-semibold text-ink underline"
-        >
-          Partager
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setViewMode((v) => (v === "list" ? "grid" : "list"))}
+            className="text-xs font-semibold text-ink underline"
+          >
+            {viewMode === "list" ? "Vue grille" : "Vue liste"}
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowShareSheet(true)}
+            className="text-xs font-semibold text-ink underline"
+          >
+            Partager
+          </button>
+        </div>
       </div>
 
       <MonthHeader
@@ -145,6 +158,13 @@ export function CalendarApp({ userId }: CalendarAppProps) {
       <div className="px-2">
         {eventsLoading ? (
           <div className="text-center text-sm text-ink/40 py-10">Mise à jour…</div>
+        ) : viewMode === "list" ? (
+          <MonthListView
+            cells={cells}
+            memberColors={memberColors}
+            selectedDate={selectedDate}
+            onSelectDate={setSelectedDate}
+          />
         ) : (
           <MonthGrid
             cells={cells}
