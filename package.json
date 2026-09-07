@@ -17,7 +17,9 @@
     "@supabase/supabase-js": "2.45.4",
     "date-fns": "3.6.0",
     "clsx": "2.1.1",
-    "@capacitor/core": "6.1.2"
+    "@capacitor/core": "6.1.2",
+    "@capacitor/filesystem": "6.0.1",
+    "@capacitor-community/file-opener": "6.0.1"
   },
   "devDependencies": {
     "typescript": "5.5.4",

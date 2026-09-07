@@ -55,12 +55,22 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
 
+      - name: Calcul du numero de version (semver simplifie)
+        id: version
+        run: |
+          MAJOR=1
+          MINOR=0
+          PATCH=${{ github.run_number }}
+          echo "version=v${MAJOR}.${MINOR}.${PATCH}" >> "$GITHUB_OUTPUT"
+          echo "semver=${MAJOR}.${MINOR}.${PATCH}" >> "$GITHUB_OUTPUT"
+
       - name: Build web statique (Next.js export)
         run: npm run build
         env:
           BUILD_TARGET: capacitor
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          NEXT_PUBLIC_APP_VERSION: ${{ steps.version.outputs.semver }}
 
       - name: Ajout de la plateforme Android (Capacitor)
         run: |
@@ -75,14 +85,6 @@ jobs:
       - name: Build de l'APK debug
         working-directory: android
         run: ./gradlew assembleDebug --no-daemon
-
-      - name: Calcul du numero de version (semver simplifie)
-        id: version
-        run: |
-          MAJOR=1
-          MINOR=0
-          PATCH=${{ github.run_number }}
-          echo "version=v${MAJOR}.${MINOR}.${PATCH}" >> "$GITHUB_OUTPUT"
 
       - name: Renommer l'APK avec la version
         run: |
@@ -106,11 +108,19 @@ jobs:
             echo "EOF" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Calcul du checksum SHA-256 de l'APK
+        run: |
+          cd dist
+          sha256sum "MyOldSharedCalendar-${{ steps.version.outputs.version }}.apk" > checksums.txt
+          cat checksums.txt
+
       - name: Publication de l'APK en artifact
         uses: actions/upload-artifact@v4
         with:
           name: MyOldSharedCalendar-${{ steps.version.outputs.version }}
-          path: dist/MyOldSharedCalendar-${{ steps.version.outputs.version }}.apk
+          path: |
+            dist/MyOldSharedCalendar-${{ steps.version.outputs.version }}.apk
+            dist/checksums.txt
           retention-days: 90
 
       - name: Creation de la Release GitHub avec l'APK
@@ -125,8 +135,10 @@ jobs:
 
             ---
             Build automatique depuis le commit ${{ github.sha }}.
-            APK debug, a installer manuellement (autoriser les sources inconnues sur Android).
-          files: dist/MyOldSharedCalendar-${{ steps.version.outputs.version }}.apk
+            APK debug. Verifiee automatiquement (checksum SHA-256) et proposee via la mise a jour dans l'application.
+          files: |
+            dist/MyOldSharedCalendar-${{ steps.version.outputs.version }}.apk
+            dist/checksums.txt
           draft: false
           prerelease: false
           generate_release_notes: false

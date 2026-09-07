@@ -13,7 +13,10 @@ import { ShareHouseholdSheet } from "./onboarding/ShareHouseholdSheet";
 import { useHousehold } from "@/hooks/useHousehold";
 import { useMonthEvents } from "@/hooks/useMonthEvents";
 import { createBrowserClient } from "@/lib/supabase/browserClient";
+import { checkForUpdate } from "@/lib/updater/checkForUpdate";
 import type { CalendarEvent } from "@/types/database";
+
+const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION ?? "1.0.0";
 
 interface CalendarAppProps {
   userId: string;
@@ -43,6 +46,9 @@ export function CalendarApp({ userId }: CalendarAppProps) {
 
   useEffect(() => {
     setSchoolZone(loadStoredZone());
+    checkForUpdate(APP_VERSION).catch((error) => {
+      console.error("Verification de mise a jour echouee:", error);
+    });
   }, []);
 
   const changeZone = (zone: SchoolZone) => {

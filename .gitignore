@@ -8,3 +8,4 @@ android
 ios
 *.log
 .DS_Store
+*.tsbuildinfo
