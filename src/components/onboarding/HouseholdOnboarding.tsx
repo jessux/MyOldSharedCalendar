@@ -72,7 +72,17 @@ export function HouseholdOnboarding({ userId, onComplete }: HouseholdOnboardingP
     setLoading(true);
     setError(null);
 
-    const { data, error: rpcError } = await supabase.rpc("join_household_by_invite_code", {
+    // Cast volontaire : la fonction join_household_by_invite_code est definie
+    // au niveau base (SECURITY DEFINER) et n'est pas forcement presente dans
+    // le fichier de types local src/types/database.ts, qui est ecrit a la main.
+    const rpcClient = supabase as unknown as {
+      rpc: (
+        fn: string,
+        args: Record<string, unknown>
+      ) => Promise<{ data: { household_id: string; household_name: string }[] | null; error: { code?: string; message?: string } | null }>;
+    };
+
+    const { data, error: rpcError } = await rpcClient.rpc("join_household_by_invite_code", {
       p_invite_code: trimmedCode
     });
 
