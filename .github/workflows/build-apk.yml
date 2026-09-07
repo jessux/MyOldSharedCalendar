@@ -12,6 +12,7 @@ jobs:
   build-apk:
     name: Build APK et publier une Release
     runs-on: ubuntu-latest
+    environment: production
 
     steps:
       - name: Checkout du code (historique complet pour le changelog)
