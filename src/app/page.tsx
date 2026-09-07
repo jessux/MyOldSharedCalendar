@@ -6,9 +6,9 @@ import { HouseholdOnboarding } from "@/components/onboarding/HouseholdOnboarding
 import { CalendarApp } from "@/components/CalendarApp";
 
 export default function HomePage() {
-  const { user, loading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
 
-  if (loading || !user) {
+  if (authLoading || !user) {
     return <div className="flex items-center justify-center h-screen text-ink/50">Chargement…</div>;
   }
 

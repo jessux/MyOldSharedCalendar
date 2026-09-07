@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { createBrowserClient } from "@/lib/supabase/browserClient";
 
@@ -8,11 +8,12 @@ export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const supabase = createBrowserClient();
+  const signingInRef = useRef(false);
 
   useEffect(() => {
     let mounted = true;
 
-    async function ensureSession() {
+    const init = async () => {
       const { data } = await supabase.auth.getSession();
 
       if (data.session?.user) {
@@ -23,20 +24,19 @@ export function useAuth() {
         return;
       }
 
-      const { data: anonData, error } = await supabase.auth.signInAnonymously();
-      if (!mounted) return;
+      if (signingInRef.current) return;
+      signingInRef.current = true;
 
-      if (error) {
-        console.error("Connexion anonyme impossible :", error.message);
+      const { data: anon, error } = await supabase.auth.signInAnonymously();
+      if (mounted) {
+        if (!error && anon.user) {
+          setUser(anon.user);
+        }
         setLoading(false);
-        return;
       }
+    };
 
-      setUser(anonData.user ?? null);
-      setLoading(false);
-    }
-
-    ensureSession();
+    init();
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
@@ -48,5 +48,52 @@ export function useAuth() {
     };
   }, [supabase]);
 
-  return { user, loading };
+  const sendOtpCode = useCallback(
+    async (email: string) => {
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          shouldCreateUser: true
+        }
+      });
+      if (error) throw error;
+    },
+    [supabase]
+  );
+
+  const verifyOtpCode = useCallback(
+    async (email: string, token: string) => {
+      const { error } = await supabase.auth.verifyOtp({
+        email,
+        token,
+        type: "email"
+      });
+      if (error) throw error;
+    },
+    [supabase]
+  );
+
+  const linkEmailToAccount = useCallback(
+    async (email: string) => {
+      const { error } = await supabase.auth.updateUser({ email });
+      if (error) throw error;
+    },
+    [supabase]
+  );
+
+  const signOut = useCallback(async () => {
+    await supabase.auth.signOut();
+  }, [supabase]);
+
+  const isAnonymous = user ? !user.email : false;
+
+  return {
+    user,
+    loading,
+    isAnonymous,
+    sendOtpCode,
+    verifyOtpCode,
+    linkEmailToAccount,
+    signOut
+  };
 }

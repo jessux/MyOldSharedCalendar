@@ -7,6 +7,7 @@ import { MonthGrid } from "./calendar/MonthGrid";
 import { MemberFilterBar } from "./calendar/MemberFilterBar";
 import { DayDetailSheet } from "./calendar/DayDetailSheet";
 import { EventFormSheet, type EventFormValues } from "./calendar/EventFormSheet";
+import { ShareHouseholdSheet } from "./onboarding/ShareHouseholdSheet";
 import { useHousehold } from "@/hooks/useHousehold";
 import { useMonthEvents } from "@/hooks/useMonthEvents";
 import { createBrowserClient } from "@/lib/supabase/browserClient";
@@ -20,6 +21,7 @@ export function CalendarApp({ userId }: CalendarAppProps) {
   const [reference, setReference] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [activeMemberIds, setActiveMemberIds] = useState<Set<string>>(new Set());
+  const [showShareSheet, setShowShareSheet] = useState(false);
   const [formState, setFormState] = useState<
     { mode: "create" } | { mode: "edit"; event: CalendarEvent } | null
   >(null);
@@ -120,6 +122,17 @@ export function CalendarApp({ userId }: CalendarAppProps) {
 
   return (
     <div className="min-h-screen bg-paper pb-6">
+      <div className="flex items-center justify-between px-3 pt-2">
+        <span className="text-xs font-semibold text-ink/50 truncate">{household.name}</span>
+        <button
+          type="button"
+          onClick={() => setShowShareSheet(true)}
+          className="text-xs font-semibold text-ink underline"
+        >
+          Partager
+        </button>
+      </div>
+
       <MonthHeader
         label={monthLabel(reference)}
         onPrev={() => setReference((r) => previousMonth(r))}
@@ -161,6 +174,14 @@ export function CalendarApp({ userId }: CalendarAppProps) {
           onCancel={() => setFormState(null)}
           onSubmit={handleCreateOrUpdate}
           onDelete={formState.mode === "edit" ? handleDelete : undefined}
+        />
+      )}
+
+      {showShareSheet && (
+        <ShareHouseholdSheet
+          householdName={household.name}
+          inviteCode={household.invite_code}
+          onClose={() => setShowShareSheet(false)}
         />
       )}
     </div>
