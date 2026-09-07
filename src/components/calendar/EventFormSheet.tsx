@@ -1,17 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import clsx from "clsx";
 import { format } from "date-fns";
 import type { CalendarEvent, EventCategory, HouseholdMember } from "@/types/database";
-
-const CATEGORIES: { value: EventCategory; label: string }[] = [
-  { value: "famille", label: "Famille" },
-  { value: "ecole", label: "École" },
-  { value: "travail", label: "Travail" },
-  { value: "sante", label: "Santé" },
-  { value: "loisirs", label: "Loisirs" },
-  { value: "autre", label: "Autre" }
-];
+import { CATEGORY_OPTIONS, CategoryIcon } from "./categoryIcons";
 
 export interface EventFormValues {
   title: string;
@@ -145,20 +138,29 @@ export function EventFormSheet({
           </div>
         )}
 
-        <label className="flex flex-col gap-1">
+        <div className="flex flex-col gap-2">
           <span className="text-xs font-semibold text-ink/60 uppercase">Catégorie</span>
-          <select
-            value={category}
-            onChange={(e) => setCategory(e.target.value as EventCategory)}
-            className="rounded-lg border border-line px-3 py-2 text-ink bg-white"
-          >
-            {CATEGORIES.map((c) => (
-              <option key={c.value} value={c.value}>
-                {c.label}
-              </option>
+          <div className="calendar-category-grid" role="radiogroup" aria-label="Catégorie">
+            {CATEGORY_OPTIONS.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                role="radio"
+                aria-checked={category === option.value}
+                onClick={() => setCategory(option.value)}
+                className={clsx(
+                  "calendar-category-option",
+                  category === option.value && "is-active"
+                )}
+              >
+                <span className="calendar-category-icon" style={{ color: option.color }}>
+                  <CategoryIcon category={option.value} />
+                </span>
+                <span>{option.label}</span>
+              </button>
             ))}
-          </select>
-        </label>
+          </div>
+        </div>
 
         <label className="flex flex-col gap-1">
           <span className="text-xs font-semibold text-ink/60 uppercase">Notes</span>

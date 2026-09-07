@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type MouseEvent, type TouchEvent } from "react";
+import clsx from "clsx";
 import { buildMonthGrid, monthLabel, nextMonth, previousMonth } from "@/lib/calendar/monthGrid";
 import type { SchoolZone } from "@/lib/calendar/schoolHolidays";
 import { MonthHeader } from "./calendar/MonthHeader";
@@ -15,6 +16,7 @@ import { useMonthEvents } from "@/hooks/useMonthEvents";
 import { createBrowserClient } from "@/lib/supabase/browserClient";
 import { checkForUpdate } from "@/lib/updater/checkForUpdate";
 import type { CalendarEvent } from "@/types/database";
+import { ChevronDown, GridIcon, ListIcon, LogOut } from "./calendar/icons";
 
 const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION ?? "1.0.0";
 
@@ -25,6 +27,8 @@ interface CalendarAppProps {
 type ViewMode = "list" | "grid";
 
 const SCHOOL_ZONE_STORAGE_KEY = "myoldsharedcalendar_school_zone";
+const SWIPE_THRESHOLD = 48;
+const SWIPE_DIRECTION_RATIO = 1.2;
 
 function loadStoredZone(): SchoolZone {
   if (typeof window === "undefined") return "C";
@@ -40,9 +44,13 @@ export function CalendarApp({ userId }: CalendarAppProps) {
   const [showShareSheet, setShowShareSheet] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [schoolZone, setSchoolZone] = useState<SchoolZone>("C");
+  const [showUserMenu, setShowUserMenu] = useState(false);
   const [formState, setFormState] = useState<
     { mode: "create" } | { mode: "edit"; event: CalendarEvent } | null
   >(null);
+  const swipeStartRef = useRef<{ x: number; y: number } | null>(null);
+  const suppressClickRef = useRef(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setSchoolZone(loadStoredZone());
@@ -50,6 +58,26 @@ export function CalendarApp({ userId }: CalendarAppProps) {
       console.error("Verification de mise a jour echouee:", error);
     });
   }, []);
+
+  useEffect(() => {
+    if (!showUserMenu) return;
+
+    const closeOnOutsidePointer = (event: Event) => {
+      if (!(event.target instanceof Node) || !userMenuRef.current?.contains(event.target)) {
+        setShowUserMenu(false);
+      }
+    };
+    const closeOnEscape = (event: globalThis.KeyboardEvent) => {
+      if (event.key === "Escape") setShowUserMenu(false);
+    };
+
+    document.addEventListener("pointerdown", closeOnOutsidePointer);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeOnOutsidePointer);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [showUserMenu]);
 
   const changeZone = (zone: SchoolZone) => {
     setSchoolZone(zone);
@@ -67,6 +95,8 @@ export function CalendarApp({ userId }: CalendarAppProps) {
     for (const m of members) map[m.user_id] = m.color;
     return map;
   }, [members]);
+
+  const currentMember = members.find((member) => member.user_id === userId);
 
   const filteredEvents = useMemo(() => {
     if (activeMemberIds.size === 0) return events;
@@ -94,6 +124,45 @@ export function CalendarApp({ userId }: CalendarAppProps) {
       else next.add(userId);
       return next;
     });
+  };
+
+  const handleCalendarTouchStart = (event: TouchEvent<HTMLDivElement>) => {
+    if (event.touches.length !== 1) {
+      swipeStartRef.current = null;
+      return;
+    }
+
+    const touch = event.touches[0];
+    swipeStartRef.current = { x: touch.clientX, y: touch.clientY };
+  };
+
+  const handleCalendarTouchEnd = (event: TouchEvent<HTMLDivElement>) => {
+    const start = swipeStartRef.current;
+    swipeStartRef.current = null;
+    if (!start || event.changedTouches.length === 0) return;
+
+    const touch = event.changedTouches[0];
+    const deltaX = touch.clientX - start.x;
+    const deltaY = touch.clientY - start.y;
+    const isHorizontalSwipe =
+      Math.abs(deltaX) >= SWIPE_THRESHOLD &&
+      Math.abs(deltaX) > Math.abs(deltaY) * SWIPE_DIRECTION_RATIO;
+
+    if (!isHorizontalSwipe) return;
+
+    event.preventDefault();
+    suppressClickRef.current = true;
+    setReference((current) => (deltaX < 0 ? nextMonth(current) : previousMonth(current)));
+    window.setTimeout(() => {
+      suppressClickRef.current = false;
+    }, 500);
+  };
+
+  const handleCalendarClickCapture = (event: MouseEvent<HTMLDivElement>) => {
+    if (!suppressClickRef.current) return;
+    event.preventDefault();
+    event.stopPropagation();
+    suppressClickRef.current = false;
   };
 
   const handleCreateOrUpdate = async (values: EventFormValues) => {
@@ -144,6 +213,11 @@ export function CalendarApp({ userId }: CalendarAppProps) {
     }
   };
 
+  const handleSignOut = async () => {
+    setShowUserMenu(false);
+    await supabase.auth.signOut();
+  };
+
   if (householdLoading) {
     return <div className="flex items-center justify-center h-screen text-ink/50">Chargement…</div>;
   }
@@ -153,48 +227,95 @@ export function CalendarApp({ userId }: CalendarAppProps) {
   }
 
   return (
-    <div className="calendar-board min-h-screen bg-paper pb-6 shadow-cardboard">
-      <div className="flex items-center justify-between px-3 pt-6 gap-2">
-        <span className="text-xs font-semibold text-ink/50 truncate">{household.name}</span>
-        <div className="flex items-center gap-2">
-          <select
-            value={schoolZone}
-            onChange={(e) => changeZone(e.target.value as SchoolZone)}
-            className="text-xs font-semibold text-ink bg-transparent border border-line rounded px-1"
-            title="Zone scolaire"
-          >
-            <option value="A">Zone A</option>
-            <option value="B">Zone B</option>
-            <option value="C">Zone C</option>
-          </select>
-          <button
-            type="button"
-            onClick={() => setViewMode((v) => (v === "list" ? "grid" : "list"))}
-            className="text-xs font-semibold text-ink underline whitespace-nowrap"
-          >
-            {viewMode === "list" ? "Vue grille" : "Vue liste"}
-          </button>
-          <button
-            type="button"
-            onClick={() => setShowShareSheet(true)}
-            className="text-xs font-semibold text-ink underline whitespace-nowrap"
-          >
-            Partager
-          </button>
+    <div className="calendar-board min-h-screen pb-6">
+      <div className="calendar-identity flex items-center justify-between gap-2 px-3 pt-4 pb-3">
+        <div className="calendar-brand-block">
+          <span className="calendar-kicker">Calendrier partagé</span>
+          <span className="calendar-household truncate">{household.name}</span>
+        </div>
+        <div className="calendar-tool-row">
+          <label className="calendar-zone-picker">
+            <span className="sr-only">Zone scolaire</span>
+            <select
+              value={schoolZone}
+              onChange={(e) => changeZone(e.target.value as SchoolZone)}
+              title="Zone scolaire"
+            >
+              <option value="A">Zone A</option>
+              <option value="B">Zone B</option>
+              <option value="C">Zone C</option>
+            </select>
+          </label>
+          <div className="calendar-view-switch" role="group" aria-label="Mode d'affichage">
+            <button
+              type="button"
+              onClick={() => setViewMode("list")}
+              className={clsx("calendar-view-option", viewMode === "list" && "is-active")}
+              aria-pressed={viewMode === "list"}
+            >
+              <ListIcon />
+              <span>Liste</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode("grid")}
+              className={clsx("calendar-view-option", viewMode === "grid" && "is-active")}
+              aria-pressed={viewMode === "grid"}
+            >
+              <GridIcon />
+              <span>Grille</span>
+            </button>
+          </div>
+          <div className="calendar-user-menu" ref={userMenuRef}>
+            <button
+              type="button"
+              className="calendar-user-trigger"
+              aria-haspopup="menu"
+              aria-expanded={showUserMenu}
+              aria-controls="calendar-user-dropdown"
+              onClick={() => setShowUserMenu((open) => !open)}
+            >
+              <span className="calendar-user-avatar" aria-hidden="true">
+                {currentMember?.profile?.avatar_emoji ?? "🙂"}
+              </span>
+              <span className="calendar-user-name">
+                {currentMember?.profile?.display_name ?? "Utilisateur"}
+              </span>
+              <ChevronDown />
+            </button>
+            {showUserMenu && (
+              <div id="calendar-user-dropdown" className="calendar-user-dropdown" role="menu">
+                <button type="button" role="menuitem" className="calendar-user-menu-item" onClick={handleSignOut}>
+                  <LogOut />
+                  <span>Se déconnecter</span>
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
       <MonthHeader
         label={monthLabel(reference)}
+        year={reference.getFullYear()}
+        monthIndex={reference.getMonth()}
         onPrev={() => setReference((r) => previousMonth(r))}
         onNext={() => setReference((r) => nextMonth(r))}
         onToday={() => setReference(new Date())}
-        onSignOut={() => supabase.auth.signOut()}
+        onShare={() => setShowShareSheet(true)}
       />
 
       <MemberFilterBar members={members} activeIds={activeMemberIds} onToggle={toggleMember} />
 
-      <div className="px-2">
+      <div
+        className="calendar-content touch-pan-y"
+        onTouchStart={handleCalendarTouchStart}
+        onTouchEnd={handleCalendarTouchEnd}
+        onTouchCancel={() => {
+          swipeStartRef.current = null;
+        }}
+        onClickCapture={handleCalendarClickCapture}
+      >
         {eventsLoading ? (
           <div className="text-center text-sm text-ink/40 py-10">Mise à jour…</div>
         ) : viewMode === "list" ? (

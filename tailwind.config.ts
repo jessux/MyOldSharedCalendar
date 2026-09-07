@@ -5,17 +5,17 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        paper: "#f4ecd8",
-        ink: "#2b2622",
-        line: "#c9b98e",
-        rust: "#a8402f",
-        kraft: "#d8c39a"
+        paper: "#fffdf9",
+        ink: "#172522",
+        line: "#d9e3dd",
+        rust: "#e36f51",
+        kraft: "#dce9e2"
       },
       fontFamily: {
         hand: ["'Segoe Print'", "'Comic Sans MS'", "cursive"]
       },
       boxShadow: {
-        cardboard: "0 2px 0 rgba(43,38,34,0.15), 0 8px 16px -8px rgba(43,38,34,0.35)"
+        cardboard: "0 2px 0 rgba(23,37,34,0.06), 0 12px 24px -10px rgba(40,78,68,0.18)"
       }
     }
   },

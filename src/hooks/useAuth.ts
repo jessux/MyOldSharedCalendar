@@ -4,41 +4,19 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { createBrowserClient } from "@/lib/supabase/browserClient";
 
+function getAuthRedirectUrl(): string | undefined {
+  if (typeof window === "undefined") return undefined;
+  return window.location.origin;
+}
+
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const supabase = createBrowserClient();
-  const signingInRef = useRef(false);
+  const initializationRef = useRef<Promise<User | null> | null>(null);
 
   useEffect(() => {
     let mounted = true;
-
-    const init = async () => {
-      const { data } = await supabase.auth.getSession();
-
-      if (data.session?.user) {
-        await ensureProfile(data.session.user.id);
-        if (mounted) {
-          setUser(data.session.user);
-          setLoading(false);
-        }
-        return;
-      }
-
-      if (signingInRef.current) return;
-      signingInRef.current = true;
-
-      const { data: anon, error } = await supabase.auth.signInAnonymously();
-      if (!error && anon.user) {
-        await ensureProfile(anon.user.id);
-      }
-      if (mounted) {
-        if (!error && anon.user) {
-          setUser(anon.user);
-        }
-        setLoading(false);
-      }
-    };
 
     const ensureProfile = async (userId: string) => {
       await supabase
@@ -46,7 +24,34 @@ export function useAuth() {
         .upsert({ id: userId, display_name: "Moi" }, { onConflict: "id", ignoreDuplicates: true });
     };
 
-    init();
+    const init = async () => {
+      if (!initializationRef.current) {
+        initializationRef.current = (async () => {
+          const { data } = await supabase.auth.getSession();
+
+          if (data.session?.user) {
+            await ensureProfile(data.session.user.id);
+            return data.session.user;
+          }
+
+          return null;
+        })();
+      }
+
+      try {
+        const initializedUser = await initializationRef.current;
+        if (mounted) {
+          setUser(initializedUser);
+          setLoading(false);
+        }
+      } catch (error) {
+        initializationRef.current = null;
+        console.error("Initialisation auth echouee:", error);
+        if (mounted) setLoading(false);
+      }
+    };
+
+    void init();
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
@@ -66,7 +71,8 @@ export function useAuth() {
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {
-          shouldCreateUser: true
+          shouldCreateUser: true,
+          emailRedirectTo: getAuthRedirectUrl()
         }
       });
       if (error) throw error;
@@ -88,7 +94,10 @@ export function useAuth() {
 
   const linkEmailToAccount = useCallback(
     async (email: string) => {
-      const { error } = await supabase.auth.updateUser({ email });
+      const { error } = await supabase.auth.updateUser(
+        { email },
+        { emailRedirectTo: getAuthRedirectUrl() }
+      );
       if (error) throw error;
     },
     [supabase]

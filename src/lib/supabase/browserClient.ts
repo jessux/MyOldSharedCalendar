@@ -27,11 +27,14 @@ export function createBrowserClient(): SupabaseClient<Database> {
 
   const url = rawUrl || BUILD_TIME_FALLBACK_URL;
   const anonKey = rawKey || BUILD_TIME_FALLBACK_KEY;
+  const authStorage = typeof window === "undefined" ? undefined : window.localStorage;
 
   client = createClient<Database>(url, anonKey, {
     auth: {
       persistSession: true,
-      autoRefreshToken: true
+      storage: authStorage,
+      autoRefreshToken: true,
+      detectSessionInUrl: true
     }
   });
 

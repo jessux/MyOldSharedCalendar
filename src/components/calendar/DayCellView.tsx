@@ -15,36 +15,39 @@ interface DayCellViewProps {
 export function DayCellView({ cell, memberColors, isSelected, onSelect }: DayCellViewProps) {
   const visibleEvents = cell.events.slice(0, MAX_VISIBLE_EVENTS);
   const overflowCount = cell.events.length - visibleEvents.length;
+  const isWeekend = cell.date.getDay() === 0 || cell.date.getDay() === 6;
 
   return (
     <button
       type="button"
       onClick={() => onSelect(cell.date)}
       className={clsx(
-        "relative flex flex-col items-stretch bg-paper p-1 text-left align-top",
-        "min-h-[13vh] transition-colors",
-        !cell.isCurrentMonth && "opacity-40",
-        isSelected && "ring-2 ring-inset ring-ink/70"
+        "paper-day relative flex flex-col items-stretch transition-colors",
+        !cell.isCurrentMonth && "paper-day--outside",
+        isWeekend && "paper-day--weekend",
+        isSelected && "paper-day--selected"
       )}
     >
       <span
         className={clsx(
-          "self-end text-[12px] font-semibold w-5 h-5 flex items-center justify-center rounded-full",
-          cell.isToday ? "bg-ink text-paper" : "text-ink/80"
+          "paper-day-number self-start",
+          cell.isToday && "paper-day-number--today"
         )}
       >
         {cell.date.getDate()}
       </span>
 
-      <div className="mt-1 flex flex-col gap-[2px] overflow-hidden">
+      <div className="paper-day-events">
         {visibleEvents.map((event) => (
           <span
             key={event.id}
-            className="truncate rounded-sm px-1 py-[1px] text-[10px] leading-tight text-white"
+            className="paper-event truncate leading-tight"
             style={{
+              "--event-color":
+                event.color_override ?? memberColors[event.created_by ?? ""] ?? "#4f83cc",
               backgroundColor:
                 event.color_override ?? memberColors[event.created_by ?? ""] ?? "#4f83cc"
-            }}
+            } as React.CSSProperties}
             title={event.title}
           >
             {event.title}
@@ -52,7 +55,7 @@ export function DayCellView({ cell, memberColors, isSelected, onSelect }: DayCel
         ))}
 
         {overflowCount > 0 && (
-          <span className="text-[10px] font-medium text-ink/60 px-1">
+          <span className="text-[10px] font-bold text-ink/60 px-1">
             +{overflowCount}
           </span>
         )}

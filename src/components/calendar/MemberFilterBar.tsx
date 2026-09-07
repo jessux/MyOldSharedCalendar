@@ -13,7 +13,7 @@ export function MemberFilterBar({ members, activeIds, onToggle }: MemberFilterBa
   if (members.length === 0) return null;
 
   return (
-    <div className="flex gap-2 overflow-x-auto px-2 pb-2">
+    <div className="calendar-members flex gap-2 overflow-x-auto">
       {members.map((member) => {
         const active = activeIds.size === 0 || activeIds.has(member.user_id);
         return (
@@ -22,8 +22,8 @@ export function MemberFilterBar({ members, activeIds, onToggle }: MemberFilterBa
             type="button"
             onClick={() => onToggle(member.user_id)}
             className={clsx(
-              "flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold whitespace-nowrap border",
-              active ? "text-white border-transparent" : "text-ink/50 border-line bg-white"
+              "calendar-member flex items-center gap-1 whitespace-nowrap",
+              active ? "text-white border-transparent" : "text-ink/50"
             )}
             style={active ? { backgroundColor: member.color } : undefined}
           >

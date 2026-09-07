@@ -1,7 +1,3 @@
-import { Capacitor } from "@capacitor/core";
-import { Filesystem, Directory } from "@capacitor/filesystem";
-import { FileOpener } from "@capacitor-community/file-opener";
-
 const GITHUB_REPO = "jessux/myoldsharedcalendar";
 const APK_FILENAME = "update.apk";
 
@@ -52,9 +48,15 @@ async function sha256Hex(data: ArrayBuffer): Promise<string> {
  * puis lance l'installation via l'intent systeme Android.
  */
 export async function checkForUpdate(currentVersion: string): Promise<void> {
+  const { Capacitor } = await import("@capacitor/core");
   if (!Capacitor.isNativePlatform() || Capacitor.getPlatform() !== "android") {
     return;
   }
+
+  const [{ Directory, Filesystem }, { FileOpener }] = await Promise.all([
+    import("@capacitor/filesystem"),
+    import("@capacitor-community/file-opener")
+  ]);
 
   const releaseRes = await fetch(
     `https://api.github.com/repos/${GITHUB_REPO}/releases/latest`

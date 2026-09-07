@@ -7,40 +7,40 @@ export type EventCategory =
   | "loisirs"
   | "autre";
 
-export interface Profile {
+export type Profile = {
   id: string;
   display_name: string;
   avatar_emoji: string;
   created_at: string;
-}
+};
 
-export interface Household {
+export type Household = {
   id: string;
   name: string;
   timezone: string;
   invite_code: string;
   created_by: string | null;
   created_at: string;
-}
+};
 
-export interface HouseholdMember {
+export type HouseholdMember = {
   household_id: string;
   user_id: string;
   role: MemberRole;
   color: string;
   joined_at: string;
   profile?: Profile;
-}
+};
 
-export interface Calendar {
+export type Calendar = {
   id: string;
   household_id: string;
   name: string;
   color: string;
   created_at: string;
-}
+};
 
-export interface CalendarEvent {
+export type CalendarEvent = {
   id: string;
   calendar_id: string;
   household_id: string;
@@ -55,7 +55,7 @@ export interface CalendarEvent {
   color_override: string | null;
   created_at: string;
   updated_at: string;
-}
+};
 
 export interface Database {
   public: {
@@ -64,11 +64,13 @@ export interface Database {
         Row: Profile;
         Insert: Partial<Profile> & { id: string; display_name: string };
         Update: Partial<Profile>;
+        Relationships: [];
       };
       households: {
         Row: Household;
         Insert: Partial<Household> & { name: string };
         Update: Partial<Household>;
+        Relationships: [];
       };
       household_members: {
         Row: HouseholdMember;
@@ -77,11 +79,13 @@ export interface Database {
           user_id: string;
         };
         Update: Partial<HouseholdMember>;
+        Relationships: [];
       };
       calendars: {
         Row: Calendar;
         Insert: Partial<Calendar> & { household_id: string };
         Update: Partial<Calendar>;
+        Relationships: [];
       };
       events: {
         Row: CalendarEvent;
@@ -93,7 +97,10 @@ export interface Database {
           ends_at: string;
         };
         Update: Partial<CalendarEvent>;
+        Relationships: [];
       };
     };
+    Views: {};
+    Functions: {};
   };
 }

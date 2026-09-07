@@ -74,8 +74,8 @@ export function ShareHouseholdSheet({ householdName, inviteCode, onClose }: Shar
         </button>
 
         <p className="text-xs text-ink/50 text-center">
-          La personne qui rejoint pourra utiliser l'application sans creer de compte, en
-          saisissant simplement ce code.
+          La personne qui rejoint devra se connecter avec son adresse e-mail, puis saisir ce
+          code pour accéder au foyer.
         </p>
       </div>
     </div>

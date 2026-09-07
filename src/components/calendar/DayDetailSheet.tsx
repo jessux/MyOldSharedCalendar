@@ -3,6 +3,7 @@
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import type { CalendarEvent, HouseholdMember } from "@/types/database";
+import { CategoryIcon, getCategoryOption } from "./categoryIcons";
 import { PlusIcon } from "./icons";
 
 interface DayDetailSheetProps {
@@ -45,33 +46,46 @@ export function DayDetailSheet({
         )}
 
         <ul className="flex flex-col gap-2">
-          {events.map((event) => (
-            <li key={event.id}>
-              <button
-                type="button"
-                onClick={() => onEdit(event)}
-                className="w-full flex items-start gap-2 rounded-lg border border-line p-2 text-left"
-              >
-                <span
-                  className="mt-1 h-3 w-3 rounded-full flex-shrink-0"
-                  style={{ backgroundColor: event.color_override ?? memberColor(event.created_by) }}
-                />
-                <span className="flex-1">
-                  <span className="block font-semibold text-ink text-sm">{event.title}</span>
-                  <span className="block text-xs text-ink/60">
-                    {event.all_day
-                      ? "Toute la journée"
-                      : `${format(new Date(event.starts_at), "HH:mm")} - ${format(
-                          new Date(event.ends_at),
-                          "HH:mm"
-                        )}`}
-                    {" · "}
-                    {memberName(event.created_by)}
+          {events.map((event) => {
+            const category = getCategoryOption(event.category);
+
+            return (
+              <li key={event.id}>
+                <button
+                  type="button"
+                  onClick={() => onEdit(event)}
+                  className="calendar-detail-event w-full flex items-start gap-2 rounded-lg border border-line p-2 text-left"
+                >
+                  <span
+                    className="calendar-event-category-icon flex-shrink-0"
+                    style={{ color: category.color }}
+                    title={category.label}
+                  >
+                    <CategoryIcon category={event.category} />
                   </span>
-                </span>
-              </button>
-            </li>
-          ))}
+                  <span
+                    className="calendar-event-member-dot mt-1 h-2.5 w-2.5 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: event.color_override ?? memberColor(event.created_by) }}
+                  />
+                  <span className="flex-1 min-w-0">
+                    <span className="block font-semibold text-ink text-sm truncate">{event.title}</span>
+                    <span className="block text-xs text-ink/60">
+                      {category.label}
+                      {" · "}
+                      {event.all_day
+                        ? "Toute la journée"
+                        : `${format(new Date(event.starts_at), "HH:mm")} - ${format(
+                            new Date(event.ends_at),
+                            "HH:mm"
+                          )}`}
+                      {" · "}
+                      {memberName(event.created_by)}
+                    </span>
+                  </span>
+                </button>
+              </li>
+            );
+          })}
         </ul>
       </div>
 
