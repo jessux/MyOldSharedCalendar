@@ -5,7 +5,11 @@ const config: CapacitorConfig = {
   appName: "MyOldSharedCalendar",
   webDir: "out",
   server: {
-    androidScheme: "https"
+    androidScheme: "https",
+    allowNavigation: ["*.supabase.co"]
+  },
+  android: {
+    allowMixedContent: false
   }
 };
 
