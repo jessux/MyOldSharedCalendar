@@ -4,6 +4,8 @@ import { useCallback, useEffect, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { createBrowserClient } from "@/lib/supabase/browserClient";
 
+const AUTH_REDIRECT_URL = "https://localhost";
+
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -33,8 +35,7 @@ export function useAuth() {
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {
-          emailRedirectTo:
-            typeof window !== "undefined" ? window.location.origin : undefined
+          emailRedirectTo: AUTH_REDIRECT_URL
         }
       });
       if (error) throw error;
