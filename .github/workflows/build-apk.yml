@@ -36,6 +36,24 @@ jobs:
       - name: Installation des dependances
         run: npm install
 
+      - name: Verification des variables Supabase (debug)
+        run: |
+          if [ -z "$NEXT_PUBLIC_SUPABASE_URL" ]; then
+            echo "::error::NEXT_PUBLIC_SUPABASE_URL est VIDE dans ce build CI"
+            exit 1
+          else
+            echo "NEXT_PUBLIC_SUPABASE_URL est present (longueur: ${#NEXT_PUBLIC_SUPABASE_URL})"
+          fi
+          if [ -z "$NEXT_PUBLIC_SUPABASE_ANON_KEY" ]; then
+            echo "::error::NEXT_PUBLIC_SUPABASE_ANON_KEY est VIDE dans ce build CI"
+            exit 1
+          else
+            echo "NEXT_PUBLIC_SUPABASE_ANON_KEY est present (longueur: ${#NEXT_PUBLIC_SUPABASE_ANON_KEY})"
+          fi
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+
       - name: Build web statique (Next.js export)
         run: npm run build
         env:
