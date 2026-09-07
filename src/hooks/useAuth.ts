@@ -4,8 +4,6 @@ import { useCallback, useEffect, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { createBrowserClient } from "@/lib/supabase/browserClient";
 
-const AUTH_REDIRECT_URL = "https://localhost";
-
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -30,13 +28,25 @@ export function useAuth() {
     };
   }, [supabase]);
 
-  const signInWithEmail = useCallback(
+  const sendOtpCode = useCallback(
     async (email: string) => {
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {
-          emailRedirectTo: AUTH_REDIRECT_URL
+          shouldCreateUser: true
         }
+      });
+      if (error) throw error;
+    },
+    [supabase]
+  );
+
+  const verifyOtpCode = useCallback(
+    async (email: string, token: string) => {
+      const { error } = await supabase.auth.verifyOtp({
+        email,
+        token,
+        type: "email"
       });
       if (error) throw error;
     },
@@ -47,5 +57,5 @@ export function useAuth() {
     await supabase.auth.signOut();
   }, [supabase]);
 
-  return { user, loading, signInWithEmail, signOut };
+  return { user, loading, sendOtpCode, verifyOtpCode, signOut };
 }
