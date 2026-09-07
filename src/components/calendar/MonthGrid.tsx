@@ -1,46 +1,72 @@
 "use client";
 
-import clsx from "clsx";
-import { WEEKDAY_LABELS_FR, type DayCell } from "@/lib/calendar/monthGrid";
-import { DayCellView } from "./DayCellView";
+import { useRef, useState, type TouchEvent } from "react";
 
 interface MonthGridProps {
-  cells: DayCell[];
-  memberColors: Record<string, string>;
-  selectedDate: Date | null;
-  onSelectDate: (date: Date) => void;
+  children: React.ReactNode;
+  onSwipeLeft: () => void;
+  onSwipeRight: () => void;
+  className?: string;
 }
 
-export function MonthGrid({ cells, memberColors, selectedDate, onSelectDate }: MonthGridProps) {
-  return (
-    <div className="w-full select-none">
-      <div className="grid grid-cols-7 border-b border-line pb-1 mb-1">
-        {WEEKDAY_LABELS_FR.map((label) => (
-          <div
-            key={label}
-            className="text-center text-[11px] font-semibold uppercase tracking-wide text-ink/60"
-          >
-            {label}
-          </div>
-        ))}
-      </div>
+const SWIPE_THRESHOLD_PX = 50;
+const SWIPE_MAX_VERTICAL_PX = 80;
 
-      <div
-        className={clsx("grid grid-cols-7 gap-[2px] bg-line rounded-md overflow-hidden", "auto-rows-fr")}
-        style={{ minHeight: "68vh" }}
-      >
-        {cells.map((cell) => (
-          <DayCellView
-            key={cell.date.toISOString()}
-            cell={cell}
-            memberColors={memberColors}
-            isSelected={
-              !!selectedDate && selectedDate.toDateString() === cell.date.toDateString()
-            }
-            onSelect={onSelectDate}
-          />
-        ))}
-      </div>
+export function MonthGrid({
+  children,
+  onSwipeLeft,
+  onSwipeRight,
+  className,
+}: MonthGridProps) {
+  const touchStart = useRef<{ x: number; y: number } | null>(null);
+  const [dragX, setDragX] = useState(0);
+
+  const handleTouchStart = (e: TouchEvent<HTMLDivElement>) => {
+    const touch = e.touches[0];
+    touchStart.current = { x: touch.clientX, y: touch.clientY };
+    setDragX(0);
+  };
+
+  const handleTouchMove = (e: TouchEvent<HTMLDivElement>) => {
+    if (!touchStart.current) return;
+    const touch = e.touches[0];
+    const deltaX = touch.clientX - touchStart.current.x;
+    setDragX(deltaX);
+  };
+
+  const handleTouchEnd = (e: TouchEvent<HTMLDivElement>) => {
+    if (!touchStart.current) return;
+    const touch = e.changedTouches[0];
+    const deltaX = touch.clientX - touchStart.current.x;
+    const deltaY = touch.clientY - touchStart.current.y;
+
+    if (
+      Math.abs(deltaX) >= SWIPE_THRESHOLD_PX &&
+      Math.abs(deltaY) <= SWIPE_MAX_VERTICAL_PX
+    ) {
+      if (deltaX < 0) {
+        onSwipeLeft();
+      } else {
+        onSwipeRight();
+      }
+    }
+
+    touchStart.current = null;
+    setDragX(0);
+  };
+
+  return (
+    <div
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      style={{
+        transform: dragX ? `translateX(${dragX * 0.15}px)` : undefined,
+        transition: dragX ? "none" : "transform 150ms ease-out",
+      }}
+      className={className ?? "grid grid-cols-7 gap-px"}
+    >
+      {children}
     </div>
   );
 }
