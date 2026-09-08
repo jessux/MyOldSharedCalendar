@@ -114,22 +114,38 @@ export function HouseholdOnboarding({ userId, onDone, onCancel }: HouseholdOnboa
       rpc: (
         fn: string,
         args: Record<string, unknown>
-      ) => Promise<{ data: { household_id: string; household_name: string }[] | null; error: { code?: string; message?: string } | null }>;
+      ) => Promise<{
+        data: { household_id: string; household_name: string }[] | null;
+        error: { code?: string; message?: string; details?: string; hint?: string } | null;
+      }>;
     };
 
-    const { data, error: rpcError } = await rpcClient.rpc("join_household_by_invite_code", {
-      p_invite_code: trimmedCode,
-      p_color: color
-    });
+    let data: { household_id: string; household_name: string }[] | null = null;
+    let rpcError: { code?: string; message?: string; details?: string; hint?: string } | null = null;
+
+    try {
+      const result = await rpcClient.rpc("join_household_by_invite_code", {
+        p_invite_code: trimmedCode,
+        p_color: color
+      });
+      data = result.data;
+      rpcError = result.error;
+    } catch (thrown) {
+      console.error("Jointure foyer : exception non geree:", thrown);
+      rpcError = {
+        message: thrown instanceof Error ? `${thrown.name}: ${thrown.message}` : String(thrown)
+      };
+    }
 
     if (rpcError) {
       console.error("Jointure foyer echouee:", rpcError);
       if (rpcError.code === "P0002" || rpcError.message?.includes("invite_code_not_found")) {
         setError("Code d'invitation introuvable. Vérifie qu'il est correctement saisi.");
       } else {
-        setError(
-          `Une erreur est survenue (${rpcError.code ?? "?"}: ${rpcError.message ?? "inconnue"}). Réessaie.`
-        );
+        const detail =
+          [rpcError.code, rpcError.message, rpcError.details, rpcError.hint].filter(Boolean).join(" — ") ||
+          JSON.stringify(rpcError);
+        setError(`Une erreur est survenue (${detail}). Réessaie.`);
       }
       setLoading(false);
       return;
