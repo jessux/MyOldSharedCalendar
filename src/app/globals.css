@@ -709,6 +709,17 @@ button {
   filter: brightness(0.9);
 }
 
+.calendar-auth-button-google {
+  background: var(--calendar-paper);
+  color: var(--calendar-ink);
+  border: 1px solid var(--calendar-line);
+}
+
+.calendar-auth-button-google:hover {
+  filter: none;
+  background: color-mix(in srgb, var(--calendar-paper) 92%, var(--calendar-ink));
+}
+
 @media (max-width: 640px) {
   .calendar-board {
     min-height: 100vh;

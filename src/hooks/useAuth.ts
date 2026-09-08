@@ -103,6 +103,16 @@ export function useAuth() {
     [supabase]
   );
 
+  const signInWithGoogle = useCallback(async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: getAuthRedirectUrl()
+      }
+    });
+    if (error) throw error;
+  }, [supabase]);
+
   const signOut = useCallback(async () => {
     await supabase.auth.signOut();
   }, [supabase]);
@@ -116,6 +126,7 @@ export function useAuth() {
     sendOtpCode,
     verifyOtpCode,
     linkEmailToAccount,
+    signInWithGoogle,
     signOut
   };
 }
