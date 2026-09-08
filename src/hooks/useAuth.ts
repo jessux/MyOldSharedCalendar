@@ -2,7 +2,16 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { User } from "@supabase/supabase-js";
+import { Capacitor } from "@capacitor/core";
+import { App as CapacitorApp } from "@capacitor/app";
+import { Browser } from "@capacitor/browser";
 import { createBrowserClient } from "@/lib/supabase/browserClient";
+
+// Google refuse l'authentification OAuth depuis une WebView embarquee
+// ("Error 400: disallowed_useragent"). Sur natif on ouvre donc Google
+// dans le navigateur systeme et on recupere la session via ce deep link
+// custom (intent-filter ajoute a l'AndroidManifest par le workflow CI).
+const NATIVE_AUTH_REDIRECT_URL = "fr.kahlouche.myoldsharedcalendar://auth-callback";
 
 function getAuthRedirectUrl(): string | undefined {
   if (typeof window === "undefined") return undefined;
@@ -66,6 +75,36 @@ export function useAuth() {
     };
   }, [supabase]);
 
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+
+    const listenerPromise = CapacitorApp.addListener("appUrlOpen", async ({ url }) => {
+      if (!url.startsWith(NATIVE_AUTH_REDIRECT_URL)) return;
+
+      const hash = url.split("#")[1] ?? "";
+      const params = new URLSearchParams(hash);
+      const access_token = params.get("access_token");
+      const refresh_token = params.get("refresh_token");
+
+      if (access_token && refresh_token) {
+        const { error } = await supabase.auth.setSession({ access_token, refresh_token });
+        if (error) console.error("Session Google invalide:", error);
+      } else {
+        console.error("Retour Google sans jeton de session:", url);
+      }
+
+      try {
+        await Browser.close();
+      } catch {
+        // Deja ferme par l'utilisateur ou par le systeme, sans consequence.
+      }
+    });
+
+    return () => {
+      void listenerPromise.then((handle) => handle.remove());
+    };
+  }, [supabase]);
+
   const sendOtpCode = useCallback(
     async (email: string) => {
       const { error } = await supabase.auth.signInWithOtp({
@@ -104,6 +143,19 @@ export function useAuth() {
   );
 
   const signInWithGoogle = useCallback(async () => {
+    if (Capacitor.isNativePlatform()) {
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: NATIVE_AUTH_REDIRECT_URL,
+          skipBrowserRedirect: true
+        }
+      });
+      if (error) throw error;
+      if (data.url) await Browser.open({ url: data.url });
+      return;
+    }
+
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {

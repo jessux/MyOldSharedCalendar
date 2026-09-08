@@ -117,6 +117,21 @@ jobs:
             sed -i '/<uses-permission android:name="android.permission.INTERNET" \/>/i\    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />' android/app/src/main/AndroidManifest.xml
           fi
 
+          # Intent-filter pour le deep link de retour OAuth Google (voir
+          # NATIVE_AUTH_REDIRECT_URL dans src/hooks/useAuth.ts) : Google refuse
+          # de s'authentifier depuis la WebView de l'app, on passe donc par le
+          # navigateur systeme (@capacitor/browser) puis on revient via ce schema.
+          if ! grep -q 'android:scheme="fr.kahlouche.myoldsharedcalendar"' android/app/src/main/AndroidManifest.xml; then
+            sed -i '0,/<\/intent-filter>/{/<\/intent-filter>/a\
+    <intent-filter>\
+        <action android:name="android.intent.action.VIEW" />\
+        <category android:name="android.intent.category.DEFAULT" />\
+        <category android:name="android.intent.category.BROWSABLE" />\
+        <data android:scheme="fr.kahlouche.myoldsharedcalendar" android:host="auth-callback" />\
+    </intent-filter>
+          }' android/app/src/main/AndroidManifest.xml
+          fi
+
           cat >> android/app/build.gradle <<'EOF'
 
           repositories {
