@@ -114,7 +114,15 @@ export function CalendarApp({ userId, householdData }: CalendarAppProps) {
     }
   };
 
-  const { household, households, members, calendars, loading: householdLoading, switchHousehold } = householdData;
+  const {
+    household,
+    households,
+    members,
+    calendars,
+    loading: householdLoading,
+    refresh: refreshHouseholds,
+    switchHousehold
+  } = householdData;
   const { events, loading: eventsLoading, refresh } = useMonthEvents(household?.id, reference);
   const supabase = createBrowserClient();
   const [remindersStatus, setRemindersStatus] = useState<reminders.RemindersStatus | null>(null);
@@ -346,10 +354,11 @@ export function CalendarApp({ userId, householdData }: CalendarAppProps) {
     switchHousehold(householdId);
   };
 
-  const handleFamilyAdded = (householdId: string) => {
+  const handleFamilyAdded = async (householdId: string) => {
     setShowAddFamily(false);
     setShowFamilyMenu(false);
     setActiveMemberIds(new Set());
+    await refreshHouseholds();
     switchHousehold(householdId);
   };
 
@@ -379,7 +388,7 @@ export function CalendarApp({ userId, householdData }: CalendarAppProps) {
               <ChevronDown />
             </button>
             {showFamilyMenu && (
-              <div className="calendar-user-dropdown" role="menu">
+              <div className="calendar-user-dropdown calendar-family-dropdown" role="menu">
                 {households.map((h) => (
                   <button
                     key={h.id}

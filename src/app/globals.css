@@ -330,6 +330,12 @@ button {
   padding: 0.25rem;
 }
 
+.calendar-family-dropdown {
+  left: 0;
+  right: auto;
+  max-width: min(20rem, calc(100vw - 2rem));
+}
+
 .calendar-user-menu-item {
   display: flex;
   align-items: center;
@@ -598,21 +604,21 @@ button {
 }
 
 .paper-list-row--compact {
+  height: 22px;
   min-height: 0;
-  padding: 0.25rem 0.75rem;
-}
-
-.paper-list--compact .paper-list-row--compact {
-  padding-top: 0.2rem;
-  padding-bottom: 0.2rem;
+  flex: 0 0 22px;
+  padding: 0 0.6rem;
+  overflow: hidden;
 }
 
 .calendar-list-compact-date {
-  width: 1.4rem;
+  width: 1.2rem;
+  flex: 0 0 auto;
   text-align: center;
-  font-size: 0.78rem;
+  font-size: 0.68rem;
+  line-height: 1;
   color: var(--calendar-ink);
-  border-radius: 6px;
+  border-radius: 4px;
 }
 
 .calendar-list-compact-date.paper-list-date--today {
@@ -621,17 +627,24 @@ button {
 }
 
 .calendar-list-compact-weekday {
-  width: 1.1rem;
+  width: 0.9rem;
+  flex: 0 0 auto;
   color: var(--calendar-muted);
-  font-size: 0.62rem;
+  font-size: 0.56rem;
+  line-height: 1;
   font-weight: 900;
 }
 
 .calendar-list-compact-badge {
-  font-size: 0.62rem;
+  flex: 0 1 auto;
+  font-size: 0.56rem;
+  line-height: 1;
   font-weight: 800;
   color: #a46a1f;
-  max-width: 8rem;
+  max-width: 7rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .calendar-list-compact-dots {
@@ -639,15 +652,16 @@ button {
 }
 
 .calendar-list-compact-dot {
-  width: 0.5rem;
-  height: 0.5rem;
+  width: 0.4rem;
+  height: 0.4rem;
   border-radius: 50%;
   flex: 0 0 auto;
 }
 
 .calendar-list-compact-more {
   color: var(--calendar-muted);
-  font-size: 0.6rem;
+  font-size: 0.55rem;
+  line-height: 1;
   font-weight: 800;
   flex: 0 0 auto;
 }
