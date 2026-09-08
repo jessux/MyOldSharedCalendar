@@ -172,3 +172,8 @@ $$;
 
 revoke all on function public.join_household_by_invite_code(text, text) from public;
 grant execute on function public.join_household_by_invite_code(text, text) to authenticated, anon;
+
+-- Filet de securite : couvre l'execution de toute fonction du schema par les
+-- roles authenticated/anon, y compris celles ajoutees ci-dessus. Doit rester
+-- en toute fin de fichier pour s'appliquer aux fonctions definies au-dessus.
+grant execute on all functions in schema public to authenticated, anon;

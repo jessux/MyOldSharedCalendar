@@ -123,10 +123,13 @@ export function HouseholdOnboarding({ userId, onDone, onCancel }: HouseholdOnboa
     });
 
     if (rpcError) {
+      console.error("Jointure foyer echouee:", rpcError);
       if (rpcError.code === "P0002" || rpcError.message?.includes("invite_code_not_found")) {
         setError("Code d'invitation introuvable. Vérifie qu'il est correctement saisi.");
       } else {
-        setError("Une erreur est survenue. Réessaie.");
+        setError(
+          `Une erreur est survenue (${rpcError.code ?? "?"}: ${rpcError.message ?? "inconnue"}). Réessaie.`
+        );
       }
       setLoading(false);
       return;
