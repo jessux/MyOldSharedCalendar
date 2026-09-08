@@ -603,10 +603,11 @@ button {
   background: #fff9f1;
 }
 
-.paper-list-row--compact {
+.paper-list--compact .paper-list-row.paper-list-row--compact {
   height: 22px;
   min-height: 0;
   flex: 0 0 22px;
+  gap: 0.4rem;
   padding: 0 0.6rem;
   overflow: hidden;
 }
