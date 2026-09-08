@@ -49,7 +49,7 @@ export function EventFormSheet({
   const [title, setTitle] = useState(existingEvent?.title ?? "");
   const [description, setDescription] = useState(existingEvent?.description ?? "");
   const [category, setCategory] = useState<EventCategory>(existingEvent?.category ?? "famille");
-  const [allDay, setAllDay] = useState(existingEvent?.all_day ?? true);
+  const [allDay, setAllDay] = useState(existingEvent?.all_day ?? false);
   const [date, setDate] = useState(
     format(existingEvent ? new Date(existingEvent.starts_at) : initialDate, "yyyy-MM-dd")
   );

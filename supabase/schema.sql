@@ -56,6 +56,14 @@ create table if not exists public.events (
 create index if not exists events_household_range_idx
   on public.events (household_id, starts_at, ends_at);
 
+-- Sans ces GRANT, Postgres bloque les requetes du role "authenticated"
+-- avant meme d'evaluer les policies RLS ci-dessous (erreur 42501:
+-- "permission denied for table ..."). Les policies restent la seule
+-- barriere reelle par ligne, ce GRANT ouvre juste la porte d'entree.
+grant usage on schema public to authenticated, anon;
+grant select, insert, update, delete on all tables in schema public to authenticated;
+grant usage, select on all sequences in schema public to authenticated;
+
 alter table public.profiles enable row level security;
 alter table public.households enable row level security;
 alter table public.household_members enable row level security;
@@ -131,3 +139,36 @@ create policy "events_member_select" on public.events
   for select using (public.is_household_member(household_id));
 create policy "events_member_write" on public.events
   for all using (public.is_household_member(household_id));
+
+-- Rejoindre un foyer via code d'invitation (ecran "Rejoindre un foyer" / partage familial).
+-- SECURITY DEFINER : le contournement de RLS est necessaire pour lire households
+-- par invite_code avant que l'appelant ne soit membre, puis s'auto-inserer dans
+-- household_members.
+create or replace function public.join_household_by_invite_code(p_invite_code text, p_color text default '#4f83cc')
+returns table (household_id uuid, household_name text)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_household_id uuid;
+  v_household_name text;
+begin
+  select id, name into v_household_id, v_household_name
+  from public.households
+  where lower(invite_code) = lower(p_invite_code);
+
+  if v_household_id is null then
+    raise exception 'invite_code_not_found' using errcode = 'P0002';
+  end if;
+
+  insert into public.household_members (household_id, user_id, role, color)
+  values (v_household_id, auth.uid(), 'member', coalesce(p_color, '#4f83cc'))
+  on conflict (household_id, user_id) do nothing;
+
+  return query select v_household_id, v_household_name;
+end;
+$$;
+
+revoke all on function public.join_household_by_invite_code(text, text) from public;
+grant execute on function public.join_household_by_invite_code(text, text) to authenticated, anon;

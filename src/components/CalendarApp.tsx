@@ -50,6 +50,7 @@ export function CalendarApp({ userId, householdData }: CalendarAppProps) {
   const [showFamilyMenu, setShowFamilyMenu] = useState(false);
   const [showAddFamily, setShowAddFamily] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("list");
+  const [listCompact, setListCompact] = useState(true);
   const [schoolZone, setSchoolZone] = useState<SchoolZone>(loadStoredZone);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [formState, setFormState] = useState<
@@ -241,7 +242,9 @@ export function CalendarApp({ userId, householdData }: CalendarAppProps) {
   };
 
   const handleCreateOrUpdate = async (values: EventFormValues) => {
-    if (!household || calendars.length === 0) return;
+    if (!household || calendars.length === 0) {
+      throw new Error("Aucun calendrier disponible pour ce foyer. Réessaie après avoir rafraîchi la page.");
+    }
 
     const startsAt = values.allDay ? `${values.date}T00:00:00` : `${values.date}T${values.startTime}:00`;
     const endsAt = values.allDay ? `${values.date}T23:59:59` : `${values.date}T${values.endTime}:00`;
@@ -525,6 +528,8 @@ export function CalendarApp({ userId, householdData }: CalendarAppProps) {
             selectedDate={selectedDate}
             onSelectDate={setSelectedDate}
             schoolZone={schoolZone}
+            compact={listCompact}
+            onToggleCompact={() => setListCompact((c) => !c)}
           />
         ) : (
           <MonthGrid
