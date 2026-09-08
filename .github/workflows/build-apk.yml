@@ -89,6 +89,14 @@ jobs:
           fi
           npx cap sync android
 
+      - name: Recompilation de sharp depuis les sources
+        # @capacitor/assets depend de sharp@0.32.6 (fige), dont le binaire natif
+        # precompile ne s'installe pas correctement sur ce runner.
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libvips-dev
+          npm rebuild sharp --build-from-source
+
       - name: Generation des icones et splash screens Android
         run: npx @capacitor/assets generate --android
 
