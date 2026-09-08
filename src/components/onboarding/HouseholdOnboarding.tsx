@@ -5,7 +5,8 @@ import { createBrowserClient } from "@/lib/supabase/browserClient";
 
 interface HouseholdOnboardingProps {
   userId: string;
-  onDone: () => void;
+  onDone: (householdId: string) => void;
+  onCancel?: () => void;
 }
 
 type Mode = "choice" | "create" | "join";
@@ -19,7 +20,7 @@ const MEMBER_COLORS = [
   "#3a8fa3"
 ];
 
-export function HouseholdOnboarding({ userId, onDone }: HouseholdOnboardingProps) {
+export function HouseholdOnboarding({ userId, onDone, onCancel }: HouseholdOnboardingProps) {
   const [mode, setMode] = useState<Mode>("choice");
   const [householdName, setHouseholdName] = useState("");
   const [inviteCode, setInviteCode] = useState("");
@@ -88,7 +89,7 @@ export function HouseholdOnboarding({ userId, onDone }: HouseholdOnboardingProps
     }
 
     setLoading(false);
-    onDone();
+    onDone(household.id);
   };
 
   const handleJoin = async () => {
@@ -132,7 +133,7 @@ export function HouseholdOnboarding({ userId, onDone }: HouseholdOnboardingProps
     }
 
     setLoading(false);
-    onDone();
+    onDone(data[0].household_id);
   };
 
   if (mode === "choice") {
@@ -153,6 +154,11 @@ export function HouseholdOnboarding({ userId, onDone }: HouseholdOnboardingProps
         >
           Rejoindre un foyer existant
         </button>
+        {onCancel && (
+          <button type="button" onClick={onCancel} className="text-sm text-ink/60 underline">
+            Annuler
+          </button>
+        )}
       </div>
     );
   }

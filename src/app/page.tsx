@@ -19,15 +19,24 @@ export default function HomePage() {
 }
 
 function AuthenticatedArea({ userId }: { userId: string }) {
-  const { household, loading, refresh } = useHousehold(userId);
+  const householdData = useHousehold(userId);
+  const { household, loading, refresh, switchHousehold } = householdData;
 
   if (loading) {
     return <div className="flex items-center justify-center h-screen text-ink/50">Chargement…</div>;
   }
 
   if (!household) {
-    return <HouseholdOnboarding userId={userId} onDone={refresh} />;
+    return (
+      <HouseholdOnboarding
+        userId={userId}
+        onDone={async (householdId) => {
+          await refresh();
+          switchHousehold(householdId);
+        }}
+      />
+    );
   }
 
-  return <CalendarApp userId={userId} />;
+  return <CalendarApp userId={userId} householdData={householdData} />;
 }

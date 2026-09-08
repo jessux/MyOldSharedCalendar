@@ -12,7 +12,8 @@ import { MemberFilterBar } from "./calendar/MemberFilterBar";
 import { DayDetailSheet } from "./calendar/DayDetailSheet";
 import { EventFormSheet, type EventFormValues } from "./calendar/EventFormSheet";
 import { ShareHouseholdSheet } from "./onboarding/ShareHouseholdSheet";
-import { useHousehold } from "@/hooks/useHousehold";
+import { HouseholdOnboarding } from "./onboarding/HouseholdOnboarding";
+import type { useHousehold } from "@/hooks/useHousehold";
 import { useMonthEvents } from "@/hooks/useMonthEvents";
 import { createBrowserClient } from "@/lib/supabase/browserClient";
 import { checkForUpdate } from "@/lib/updater/checkForUpdate";
@@ -25,6 +26,7 @@ const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION ?? "1.0.0";
 
 interface CalendarAppProps {
   userId: string;
+  householdData: ReturnType<typeof useHousehold>;
 }
 
 type ViewMode = "list" | "grid";
@@ -40,11 +42,13 @@ function loadStoredZone(): SchoolZone {
   return "C";
 }
 
-export function CalendarApp({ userId }: CalendarAppProps) {
+export function CalendarApp({ userId, householdData }: CalendarAppProps) {
   const [reference, setReference] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [activeMemberIds, setActiveMemberIds] = useState<Set<string>>(new Set());
   const [showShareSheet, setShowShareSheet] = useState(false);
+  const [showFamilyMenu, setShowFamilyMenu] = useState(false);
+  const [showAddFamily, setShowAddFamily] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [schoolZone, setSchoolZone] = useState<SchoolZone>("C");
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -54,6 +58,7 @@ export function CalendarApp({ userId }: CalendarAppProps) {
   const swipeStartRef = useRef<{ x: number; y: number } | null>(null);
   const suppressClickRef = useRef(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
+  const familyMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setSchoolZone(loadStoredZone());
@@ -82,6 +87,26 @@ export function CalendarApp({ userId }: CalendarAppProps) {
     };
   }, [showUserMenu]);
 
+  useEffect(() => {
+    if (!showFamilyMenu) return;
+
+    const closeOnOutsidePointer = (event: Event) => {
+      if (!(event.target instanceof Node) || !familyMenuRef.current?.contains(event.target)) {
+        setShowFamilyMenu(false);
+      }
+    };
+    const closeOnEscape = (event: globalThis.KeyboardEvent) => {
+      if (event.key === "Escape") setShowFamilyMenu(false);
+    };
+
+    document.addEventListener("pointerdown", closeOnOutsidePointer);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeOnOutsidePointer);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [showFamilyMenu]);
+
   const changeZone = (zone: SchoolZone) => {
     setSchoolZone(zone);
     if (typeof window !== "undefined") {
@@ -89,7 +114,7 @@ export function CalendarApp({ userId }: CalendarAppProps) {
     }
   };
 
-  const { household, members, calendars, loading: householdLoading } = useHousehold(userId);
+  const { household, households, members, calendars, loading: householdLoading, switchHousehold } = householdData;
   const { events, loading: eventsLoading, refresh } = useMonthEvents(household?.id, reference);
   const supabase = createBrowserClient();
   const [remindersStatus, setRemindersStatus] = useState<reminders.RemindersStatus | null>(null);
@@ -312,6 +337,20 @@ export function CalendarApp({ userId }: CalendarAppProps) {
     await supabase.auth.signOut();
   };
 
+  const handleSwitchHousehold = (householdId: string) => {
+    setShowFamilyMenu(false);
+    setActiveMemberIds(new Set());
+    setSelectedDate(null);
+    switchHousehold(householdId);
+  };
+
+  const handleFamilyAdded = (householdId: string) => {
+    setShowAddFamily(false);
+    setShowFamilyMenu(false);
+    setActiveMemberIds(new Set());
+    switchHousehold(householdId);
+  };
+
   if (householdLoading) {
     return <div className="flex items-center justify-center h-screen text-ink/50">Chargement…</div>;
   }
@@ -325,7 +364,45 @@ export function CalendarApp({ userId }: CalendarAppProps) {
       <div className="calendar-identity flex items-center justify-between gap-2 px-3 pt-4 pb-3">
         <div className="calendar-brand-block">
           <span className="calendar-kicker">Calendrier partagé</span>
-          <span className="calendar-household truncate">{household.name}</span>
+          <div className="calendar-user-menu" ref={familyMenuRef}>
+            <button
+              type="button"
+              className="calendar-household truncate"
+              aria-haspopup="menu"
+              aria-expanded={showFamilyMenu}
+              onClick={() => setShowFamilyMenu((open) => !open)}
+              style={{ background: "none", border: 0, padding: 0, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "0.25rem" }}
+            >
+              {household.name}
+              <ChevronDown />
+            </button>
+            {showFamilyMenu && (
+              <div className="calendar-user-dropdown" role="menu">
+                {households.map((h) => (
+                  <button
+                    key={h.id}
+                    type="button"
+                    role="menuitem"
+                    className="calendar-user-menu-item"
+                    onClick={() => handleSwitchHousehold(h.id)}
+                  >
+                    <span>{h.id === household.id ? "✓ " : ""}{h.name}</span>
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="calendar-user-menu-item"
+                  onClick={() => {
+                    setShowFamilyMenu(false);
+                    setShowAddFamily(true);
+                  }}
+                >
+                  <span>+ Créer ou rejoindre une famille</span>
+                </button>
+              </div>
+            )}
+          </div>
         </div>
         <div className="calendar-tool-row">
           <label className="calendar-zone-picker">
@@ -489,6 +566,10 @@ export function CalendarApp({ userId }: CalendarAppProps) {
           inviteCode={household.invite_code}
           onClose={() => setShowShareSheet(false)}
         />
+      )}
+
+      {showAddFamily && (
+        <HouseholdOnboarding userId={userId} onDone={handleFamilyAdded} onCancel={() => setShowAddFamily(false)} />
       )}
     </div>
   );
