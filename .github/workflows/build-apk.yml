@@ -2,7 +2,7 @@ name: Build Android APK
 
 on:
   push:
-    branches: [main]
+    tags: ["v*.*.*"]
   workflow_dispatch: {}
 
 permissions:
@@ -63,16 +63,26 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
 
-      - name: Calcul du numero de version (semver simplifie)
+      - name: Calcul du numero de version depuis le tag git
         id: version
         run: |
-          MAJOR=1
-          MINOR=0
-          PATCH=${{ github.run_number }}
-          VERSION_CODE=${{ github.run_number }}
-          echo "version=v${MAJOR}.${MINOR}.${PATCH}" >> "$GITHUB_OUTPUT"
-          echo "semver=${MAJOR}.${MINOR}.${PATCH}" >> "$GITHUB_OUTPUT"
-          echo "version_code=${VERSION_CODE}" >> "$GITHUB_OUTPUT"
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            TAG="${GITHUB_REF#refs/tags/}"
+            if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo "::error::Le tag '$TAG' ne respecte pas le format vX.Y.Z"
+              exit 1
+            fi
+            echo "version=${TAG}" >> "$GITHUB_OUTPUT"
+            echo "semver=${TAG#v}" >> "$GITHUB_OUTPUT"
+            echo "is_release=true" >> "$GITHUB_OUTPUT"
+          else
+            # Declenchement manuel (workflow_dispatch) sans tag : build de
+            # verification uniquement, aucune Release GitHub n'est publiee.
+            echo "version=v0.0.0-dev.${{ github.run_number }}" >> "$GITHUB_OUTPUT"
+            echo "semver=0.0.0-dev.${{ github.run_number }}" >> "$GITHUB_OUTPUT"
+            echo "is_release=false" >> "$GITHUB_OUTPUT"
+          fi
+          echo "version_code=${{ github.run_number }}" >> "$GITHUB_OUTPUT"
 
       - name: Build web statique (Next.js export)
         run: npm run build
@@ -187,6 +197,7 @@ jobs:
 
       - name: Generer le changelog depuis le dernier tag
         id: changelog
+        if: steps.version.outputs.is_release == 'true'
         run: |
           PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
           if [ -z "$PREV_TAG" ]; then
@@ -217,6 +228,7 @@ jobs:
           retention-days: 90
 
       - name: Creation de la Release GitHub avec l'APK
+        if: steps.version.outputs.is_release == 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.version.outputs.version }}

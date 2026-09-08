@@ -31,7 +31,7 @@ export function useAuth() {
       (u.user_metadata?.full_name as string | undefined) ||
       (u.user_metadata?.name as string | undefined) ||
       u.email?.split("@")[0] ||
-      "Moi";
+      "Utilisateur";
 
     const ensureProfile = async (u: User) => {
       await supabase
