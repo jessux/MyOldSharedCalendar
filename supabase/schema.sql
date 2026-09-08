@@ -150,6 +150,7 @@ language plpgsql
 security definer
 set search_path = public
 as $$
+#variable_conflict use_column
 declare
   v_household_id uuid;
   v_household_name text;
