@@ -102,6 +102,17 @@ export function CalendarApp({ userId }: CalendarAppProps) {
     });
   }, [events]);
 
+  useEffect(() => {
+    let cleanup: (() => void) | undefined;
+    reminders
+      .onReminderTapped((isoDate) => setSelectedDate(new Date(isoDate)))
+      .then((remove) => {
+        cleanup = remove;
+      })
+      .catch(() => {});
+    return () => cleanup?.();
+  }, []);
+
   const toggleReminders = async () => {
     const next = await reminders.setEnabled(!(remindersStatus?.enabled ?? false));
     setRemindersStatus(next);
