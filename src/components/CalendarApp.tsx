@@ -15,8 +15,9 @@ import { useHousehold } from "@/hooks/useHousehold";
 import { useMonthEvents } from "@/hooks/useMonthEvents";
 import { createBrowserClient } from "@/lib/supabase/browserClient";
 import { checkForUpdate } from "@/lib/updater/checkForUpdate";
+import * as reminders from "@/lib/notifications/eventReminders";
 import type { CalendarEvent } from "@/types/database";
-import { ChevronDown, GridIcon, ListIcon, LogOut } from "./calendar/icons";
+import { BellIcon, ChevronDown, GridIcon, ListIcon, LogOut } from "./calendar/icons";
 
 const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION ?? "1.0.0";
 
@@ -89,6 +90,23 @@ export function CalendarApp({ userId }: CalendarAppProps) {
   const { household, members, calendars, loading: householdLoading } = useHousehold(userId);
   const { events, loading: eventsLoading, refresh } = useMonthEvents(household?.id, reference);
   const supabase = createBrowserClient();
+  const [remindersStatus, setRemindersStatus] = useState<reminders.RemindersStatus | null>(null);
+
+  useEffect(() => {
+    reminders.status().then(setRemindersStatus).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    reminders.scheduleEventReminders(events).catch((error) => {
+      console.error("Planification des rappels echouee:", error);
+    });
+  }, [events]);
+
+  const toggleReminders = async () => {
+    const next = await reminders.setEnabled(!(remindersStatus?.enabled ?? false));
+    setRemindersStatus(next);
+    if (next.enabled && next.granted) await reminders.scheduleEventReminders(events);
+  };
 
   const memberColors = useMemo(() => {
     const map: Record<string, string> = {};
@@ -285,6 +303,21 @@ export function CalendarApp({ userId }: CalendarAppProps) {
             </button>
             {showUserMenu && (
               <div id="calendar-user-dropdown" className="calendar-user-dropdown" role="menu">
+                {remindersStatus?.supported && (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="calendar-user-menu-item"
+                    onClick={toggleReminders}
+                  >
+                    <BellIcon />
+                    <span>
+                      {remindersStatus.enabled && remindersStatus.granted
+                        ? "Désactiver les rappels"
+                        : "Activer les rappels d'événements"}
+                    </span>
+                  </button>
+                )}
                 <button type="button" role="menuitem" className="calendar-user-menu-item" onClick={handleSignOut}>
                   <LogOut />
                   <span>Se déconnecter</span>
