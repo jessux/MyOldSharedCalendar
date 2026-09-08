@@ -36,7 +36,7 @@ jobs:
         uses: android-actions/setup-android@v3
 
       - name: Installation des dependances
-        run: npm install
+        run: npm ci
 
       - name: Verification des variables Supabase (debug)
         run: |
