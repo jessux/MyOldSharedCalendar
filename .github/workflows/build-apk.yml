@@ -82,6 +82,9 @@ jobs:
           fi
           npx cap sync android
 
+      - name: Generation des icones et splash screens Android
+        run: npx @capacitor/assets generate --android
+
       - name: Configurer la signature et les permissions Android
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
