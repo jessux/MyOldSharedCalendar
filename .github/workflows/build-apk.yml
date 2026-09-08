@@ -109,6 +109,15 @@ jobs:
 
           cat >> android/app/build.gradle <<'EOF'
 
+          repositories {
+            flatDir {
+              dirs '../../node_modules/@capacitor/background-runner/android/src/main/libs'
+            }
+          }
+          EOF
+
+          cat >> android/app/build.gradle <<'EOF'
+
           android {
             signingConfigs {
               release {
