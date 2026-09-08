@@ -15,6 +15,7 @@ import { useHousehold } from "@/hooks/useHousehold";
 import { useMonthEvents } from "@/hooks/useMonthEvents";
 import { createBrowserClient } from "@/lib/supabase/browserClient";
 import { checkForUpdate } from "@/lib/updater/checkForUpdate";
+import { enablePushNotifications } from "@/lib/notifications/push";
 import type { CalendarEvent } from "@/types/database";
 import { ChevronDown, GridIcon, ListIcon, LogOut } from "./calendar/icons";
 
@@ -57,6 +58,25 @@ export function CalendarApp({ userId }: CalendarAppProps) {
     checkForUpdate(APP_VERSION).catch((error) => {
       console.error("Verification de mise a jour echouee:", error);
     });
+  }, []);
+
+  useEffect(() => {
+    const eventId = new URLSearchParams(window.location.search).get("event");
+    if (!eventId) return;
+
+    createBrowserClient()
+      .from("events")
+      .select("*")
+      .eq("id", eventId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!data) return;
+        const start = new Date(data.starts_at);
+        setReference(start);
+        setSelectedDate(start);
+        setFormState({ mode: "edit", event: data as CalendarEvent });
+        window.history.replaceState(null, "", window.location.pathname);
+      });
   }, []);
 
   useEffect(() => {
@@ -285,6 +305,21 @@ export function CalendarApp({ userId }: CalendarAppProps) {
             </button>
             {showUserMenu && (
               <div id="calendar-user-dropdown" className="calendar-user-dropdown" role="menu">
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="calendar-user-menu-item"
+                  onClick={async () => {
+                    try {
+                      await enablePushNotifications(supabase, userId);
+                    } catch (error) {
+                      alert(error instanceof Error ? error.message : "Erreur notifications");
+                    }
+                    setShowUserMenu(false);
+                  }}
+                >
+                  Activer les notifications
+                </button>
                 <button type="button" role="menuitem" className="calendar-user-menu-item" onClick={handleSignOut}>
                   <LogOut />
                   <span>Se déconnecter</span>
