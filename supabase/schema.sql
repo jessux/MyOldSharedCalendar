@@ -110,6 +110,30 @@ create policy "profiles_self_upsert" on public.profiles
 create policy "profiles_self_update" on public.profiles
   for update using (auth.uid() = id);
 
+-- Un membre doit pouvoir voir le profil (nom, avatar) des autres membres de
+-- ses foyers, sinon l'app affiche un placeholder generique a la place de
+-- leur nom. Fonction SECURITY DEFINER pour eviter toute recursion RLS.
+create or replace function public.shares_household_with(target_user uuid)
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select exists (
+    select 1
+    from public.household_members hm
+    where hm.user_id = target_user
+      and public.is_household_member(hm.household_id)
+  );
+$$;
+
+revoke all on function public.shares_household_with(uuid) from public;
+grant execute on function public.shares_household_with(uuid) to authenticated, anon;
+
+create policy "profiles_household_member_select" on public.profiles
+  for select using (public.shares_household_with(id));
+
 -- Households
 -- Note : le createur voit son foyer meme avant d'etre insere dans household_members
 -- (necessaire pour que insert(...).select() fonctionne juste apres la creation)

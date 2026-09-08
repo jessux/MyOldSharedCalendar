@@ -11,6 +11,7 @@ interface HouseholdData {
   calendars: Calendar[];
   loading: boolean;
   refresh: () => Promise<void>;
+  refreshMembers: () => Promise<void>;
   switchHousehold: (householdId: string) => void;
 }
 
@@ -81,6 +82,16 @@ export function useHousehold(userId: string | undefined): HouseholdData {
     refresh();
   }, [refresh]);
 
+  const refreshMembers = useCallback(async () => {
+    if (!activeId) return;
+    const [{ data: m }, { data: c }] = await Promise.all([
+      supabase.from("household_members").select("*, profile:profiles(*)").eq("household_id", activeId),
+      supabase.from("calendars").select("*").eq("household_id", activeId)
+    ]);
+    setMembers((m as unknown as HouseholdMember[]) ?? []);
+    setCalendars(c ?? []);
+  }, [activeId, supabase]);
+
   useEffect(() => {
     if (!activeId) {
       // Reset derived state synchronously when the active household is
@@ -111,5 +122,5 @@ export function useHousehold(userId: string | undefined): HouseholdData {
 
   const household = households.find((h) => h.id === activeId) ?? null;
 
-  return { household, households, members, calendars, loading, refresh, switchHousehold };
+  return { household, households, members, calendars, loading, refresh, refreshMembers, switchHousehold };
 }

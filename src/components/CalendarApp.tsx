@@ -53,6 +53,9 @@ export function CalendarApp({ userId, householdData }: CalendarAppProps) {
   const [listCompact, setListCompact] = useState(true);
   const [schoolZone, setSchoolZone] = useState<SchoolZone>(loadStoredZone);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [editingName, setEditingName] = useState(false);
+  const [nameInput, setNameInput] = useState("");
+  const [renamingSelf, setRenamingSelf] = useState(false);
   const [formState, setFormState] = useState<
     { mode: "create" } | { mode: "edit"; event: CalendarEvent } | null
   >(null);
@@ -66,6 +69,10 @@ export function CalendarApp({ userId, householdData }: CalendarAppProps) {
       console.error("Verification de mise a jour echouee:", error);
     });
   }, []);
+
+  useEffect(() => {
+    if (!showUserMenu) setEditingName(false);
+  }, [showUserMenu]);
 
   useEffect(() => {
     if (!showUserMenu) return;
@@ -121,6 +128,7 @@ export function CalendarApp({ userId, householdData }: CalendarAppProps) {
     calendars,
     loading: householdLoading,
     refresh: refreshHouseholds,
+    refreshMembers,
     switchHousehold
   } = householdData;
   const { events, loading: eventsLoading, refresh } = useMonthEvents(household?.id, reference);
@@ -347,6 +355,18 @@ export function CalendarApp({ userId, householdData }: CalendarAppProps) {
     await supabase.auth.signOut();
   };
 
+  const handleRenameSelf = async () => {
+    const trimmed = nameInput.trim();
+    if (!trimmed) return;
+    setRenamingSelf(true);
+    const { error } = await supabase.from("profiles").update({ display_name: trimmed }).eq("id", userId);
+    setRenamingSelf(false);
+    if (!error) {
+      setEditingName(false);
+      await refreshMembers();
+    }
+  };
+
   const handleSwitchHousehold = (householdId: string) => {
     setShowFamilyMenu(false);
     setActiveMemberIds(new Set());
@@ -467,6 +487,39 @@ export function CalendarApp({ userId, householdData }: CalendarAppProps) {
             </button>
             {showUserMenu && (
               <div id="calendar-user-dropdown" className="calendar-user-dropdown" role="menu">
+                {editingName ? (
+                  <div className="calendar-user-menu-item calendar-rename-form">
+                    <input
+                      type="text"
+                      value={nameInput}
+                      onChange={(e) => setNameInput(e.target.value)}
+                      placeholder="Ton nom"
+                      autoFocus
+                      className="calendar-rename-input"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleRenameSelf}
+                      disabled={renamingSelf || !nameInput.trim()}
+                      className="calendar-rename-save"
+                    >
+                      {renamingSelf ? "..." : "OK"}
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="calendar-user-menu-item"
+                    onClick={() => {
+                      setNameInput(currentMember?.profile?.display_name ?? "");
+                      setEditingName(true);
+                    }}
+                  >
+                    <span>✏️</span>
+                    <span>Modifier mon nom</span>
+                  </button>
+                )}
                 {remindersStatus?.supported && (
                   <button
                     type="button"

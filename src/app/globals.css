@@ -330,6 +330,38 @@ button {
   padding: 0.25rem;
 }
 
+.calendar-rename-form {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.calendar-rename-input {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--calendar-line);
+  border-radius: 8px;
+  padding: 0.4rem 0.5rem;
+  font-size: 0.78rem;
+  color: var(--calendar-ink);
+  background: var(--calendar-paper);
+}
+
+.calendar-rename-save {
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: 8px;
+  background: var(--month-accent);
+  color: #fff;
+  padding: 0.4rem 0.65rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.calendar-rename-save:disabled {
+  opacity: 0.5;
+}
+
 .calendar-family-dropdown {
   left: 0;
   right: auto;

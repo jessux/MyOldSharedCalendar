@@ -27,10 +27,19 @@ export function useAuth() {
   useEffect(() => {
     let mounted = true;
 
-    const ensureProfile = async (userId: string) => {
+    const defaultDisplayName = (u: User) =>
+      (u.user_metadata?.full_name as string | undefined) ||
+      (u.user_metadata?.name as string | undefined) ||
+      u.email?.split("@")[0] ||
+      "Moi";
+
+    const ensureProfile = async (u: User) => {
       await supabase
         .from("profiles")
-        .upsert({ id: userId, display_name: "Moi" }, { onConflict: "id", ignoreDuplicates: true });
+        .upsert(
+          { id: u.id, display_name: defaultDisplayName(u) },
+          { onConflict: "id", ignoreDuplicates: true }
+        );
     };
 
     const init = async () => {
@@ -39,7 +48,7 @@ export function useAuth() {
           const { data } = await supabase.auth.getSession();
 
           if (data.session?.user) {
-            await ensureProfile(data.session.user.id);
+            await ensureProfile(data.session.user);
             return data.session.user;
           }
 
@@ -65,7 +74,7 @@ export function useAuth() {
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
       if (session?.user) {
-        ensureProfile(session.user.id);
+        ensureProfile(session.user);
       }
     });
 
