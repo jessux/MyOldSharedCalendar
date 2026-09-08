@@ -95,7 +95,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libvips-dev
-          npm rebuild sharp --build-from-source
+          npm_config_build_from_source=true npm rebuild sharp
 
       - name: Generation des icones et splash screens Android
         run: npx @capacitor/assets generate --android
