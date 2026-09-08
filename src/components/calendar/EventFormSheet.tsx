@@ -259,7 +259,7 @@ export function EventFormSheet({
             onClick={onDelete}
             className="rounded-lg border border-red-300 text-red-600 py-2 text-sm font-semibold"
           >
-            Supprimer l'événement
+            Supprimer l&apos;événement
           </button>
         )}
       </div>

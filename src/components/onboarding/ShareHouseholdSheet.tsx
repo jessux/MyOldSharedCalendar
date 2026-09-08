@@ -49,7 +49,7 @@ export function ShareHouseholdSheet({ householdName, inviteCode, onClose }: Shar
 
       <div className="flex-1 px-6 py-8 flex flex-col gap-6">
         <p className="text-sm text-ink/70">
-          Partage ce code avec ta famille pour qu'elle rejoigne le calendrier{" "}
+          Partage ce code avec ta famille pour qu&apos;elle rejoigne le calendrier{" "}
           <strong>{householdName}</strong>.
         </p>
 

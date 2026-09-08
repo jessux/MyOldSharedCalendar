@@ -38,6 +38,10 @@ export function useMonthEvents(householdId: string | undefined, reference: Date)
   }, [householdId, reference, supabase]);
 
   useEffect(() => {
+    // Fetch-on-mount/dependency-change pattern: refresh() is async and awaits
+    // Supabase before touching state, so this doesn't set state synchronously
+    // despite what the (new, strict) rule below infers from the call graph.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     refresh();
   }, [refresh]);
 

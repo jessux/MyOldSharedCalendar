@@ -74,11 +74,19 @@ export function useHousehold(userId: string | undefined): HouseholdData {
   }, [userId, supabase]);
 
   useEffect(() => {
+    // Fetch-on-mount/dependency-change pattern: refresh() is async and awaits
+    // Supabase before touching state, so this doesn't set state synchronously
+    // despite what the (new, strict) rule below infers from the call graph.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     refresh();
   }, [refresh]);
 
   useEffect(() => {
     if (!activeId) {
+      // Reset derived state synchronously when the active household is
+      // cleared (no household selected / signed out) — there's no async
+      // fetch to await here, so this intentionally sets state directly.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setMembers([]);
       setCalendars([]);
       return;

@@ -84,7 +84,7 @@ export function MonthHeader({
 
       <div className="calendar-action-row">
         <button type="button" onClick={onToday} className="calendar-today-button">
-          Aujourd'hui
+          Aujourd&apos;hui
         </button>
         {onShare && (
           <button type="button" onClick={onShare} aria-label="Partager le calendrier" className="calendar-share-button">

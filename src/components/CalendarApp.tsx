@@ -50,7 +50,7 @@ export function CalendarApp({ userId, householdData }: CalendarAppProps) {
   const [showFamilyMenu, setShowFamilyMenu] = useState(false);
   const [showAddFamily, setShowAddFamily] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("list");
-  const [schoolZone, setSchoolZone] = useState<SchoolZone>("C");
+  const [schoolZone, setSchoolZone] = useState<SchoolZone>(loadStoredZone);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [formState, setFormState] = useState<
     { mode: "create" } | { mode: "edit"; event: CalendarEvent } | null
@@ -61,7 +61,6 @@ export function CalendarApp({ userId, householdData }: CalendarAppProps) {
   const familyMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    setSchoolZone(loadStoredZone());
     checkForUpdate(APP_VERSION).catch((error) => {
       console.error("Verification de mise a jour echouee:", error);
     });

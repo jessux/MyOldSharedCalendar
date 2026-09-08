@@ -205,14 +205,14 @@ export function LoginScreen() {
             }}
             className="text-sm text-stone-600"
           >
-            Changer d'e-mail
+            Changer d&apos;e-mail
           </button>
         </>
       ) : (
         <>
           <p className="text-sm text-stone-700">
             Un lien de confirmation a été envoyé à <strong>{email}</strong>. Ouvre-le pour
-            sécuriser l'accès à ton foyer.
+            sécuriser l&apos;accès à ton foyer.
           </p>
           <button
             type="button"

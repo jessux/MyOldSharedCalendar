@@ -1,6 +1,16 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+@theme {
+  --color-paper: #fffdf9;
+  --color-ink: #172522;
+  --color-line: #d9e3dd;
+  --color-rust: #e36f51;
+  --color-kraft: #dce9e2;
+
+  --font-hand: "Segoe Print", "Comic Sans MS", cursive;
+
+  --shadow-cardboard: 0 2px 0 rgba(23, 37, 34, 0.06), 0 12px 24px -10px rgba(40, 78, 68, 0.18);
+}
 
 :root {
   color-scheme: light;

@@ -193,7 +193,7 @@ export function HouseholdOnboarding({ userId, onDone, onCancel }: HouseholdOnboa
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-paper px-6">
-      <h1 className="text-lg font-bold text-ink text-center">Code d'invitation</h1>
+      <h1 className="text-lg font-bold text-ink text-center">Code d&apos;invitation</h1>
       <input
         type="text"
         value={inviteCode}
