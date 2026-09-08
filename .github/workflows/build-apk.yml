@@ -36,7 +36,14 @@ jobs:
         uses: android-actions/setup-android@v3
 
       - name: Installation des dependances
-        run: npm ci
+        run: |
+          npm install -g npm@latest
+          for i in 1 2 3; do
+            npm ci && exit 0
+            echo "npm ci a echoue (tentative $i/3), nouvel essai..."
+            sleep 5
+          done
+          exit 1
 
       - name: Verification des variables Supabase (debug)
         run: |
