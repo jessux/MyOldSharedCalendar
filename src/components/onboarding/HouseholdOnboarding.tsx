@@ -63,7 +63,12 @@ export function HouseholdOnboarding({ userId, onDone, onCancel }: HouseholdOnboa
       .single();
 
     if (householdError || !household) {
-      setError("Impossible de créer le foyer. Réessaie.");
+      console.error("Creation foyer echouee:", householdError);
+      setError(
+        householdError
+          ? `Impossible de créer le foyer (${householdError.code ?? "?"}: ${householdError.message}).`
+          : "Impossible de créer le foyer. Réessaie."
+      );
       setLoading(false);
       return;
     }
@@ -73,7 +78,8 @@ export function HouseholdOnboarding({ userId, onDone, onCancel }: HouseholdOnboa
       .insert({ household_id: household.id, user_id: userId, role: "admin", color });
 
     if (memberError) {
-      setError("Le foyer a été créé mais l'ajout du membre a échoué. Réessaie.");
+      console.error("Ajout membre echoue:", memberError);
+      setError(`Le foyer a été créé mais l'ajout du membre a échoué (${memberError.code ?? "?"}: ${memberError.message}).`);
       setLoading(false);
       return;
     }
