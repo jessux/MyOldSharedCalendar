@@ -340,6 +340,20 @@ button {
   background: #f0f7f3;
 }
 
+.calendar-reminder-delay {
+  justify-content: space-between;
+  cursor: default;
+}
+
+.calendar-reminder-delay select {
+  border: 1px solid var(--calendar-line);
+  border-radius: 8px;
+  background: var(--calendar-paper);
+  color: var(--calendar-ink);
+  font: inherit;
+  padding: 0.15rem 0.35rem;
+}
+
 .calendar-members {
   border-bottom: 1px solid var(--calendar-line);
   background: var(--calendar-paper-aged);

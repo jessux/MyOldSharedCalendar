@@ -16,6 +16,7 @@ import { useMonthEvents } from "@/hooks/useMonthEvents";
 import { createBrowserClient } from "@/lib/supabase/browserClient";
 import { checkForUpdate } from "@/lib/updater/checkForUpdate";
 import * as reminders from "@/lib/notifications/eventReminders";
+import * as backgroundRecap from "@/lib/notifications/backgroundRecap";
 import type { CalendarEvent } from "@/types/database";
 import { BellIcon, ChevronDown, GridIcon, ListIcon, LogOut } from "./calendar/icons";
 
@@ -91,9 +92,11 @@ export function CalendarApp({ userId }: CalendarAppProps) {
   const { events, loading: eventsLoading, refresh } = useMonthEvents(household?.id, reference);
   const supabase = createBrowserClient();
   const [remindersStatus, setRemindersStatus] = useState<reminders.RemindersStatus | null>(null);
+  const [reminderMinutes, setReminderMinutes] = useState(30);
 
   useEffect(() => {
     reminders.status().then(setRemindersStatus).catch(() => {});
+    reminders.getReminderMinutes().then(setReminderMinutes).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -112,6 +115,24 @@ export function CalendarApp({ userId }: CalendarAppProps) {
       .catch(() => {});
     return () => cleanup?.();
   }, []);
+
+  // Pousse la config au runner de fond des que le foyer est connu et que les
+  // rappels sont actives, pour qu'il puisse rafraichir le recap hebdo meme app
+  // fermee (voir backgroundRecap.ts).
+  useEffect(() => {
+    if (!household?.id) return;
+    if (remindersStatus?.enabled && remindersStatus.granted) {
+      backgroundRecap.configure(household.id, true).catch(() => {});
+    } else if (remindersStatus) {
+      backgroundRecap.disable().catch(() => {});
+    }
+  }, [household?.id, remindersStatus]);
+
+  const changeReminderMinutes = async (minutes: number) => {
+    setReminderMinutes(minutes);
+    await reminders.setReminderMinutes(minutes);
+    await reminders.scheduleEventReminders(events);
+  };
 
   const toggleReminders = async () => {
     const next = await reminders.setEnabled(!(remindersStatus?.enabled ?? false));
@@ -328,6 +349,21 @@ export function CalendarApp({ userId }: CalendarAppProps) {
                         : "Activer les rappels d'événements"}
                     </span>
                   </button>
+                )}
+                {remindersStatus?.supported && remindersStatus.enabled && remindersStatus.granted && (
+                  <label className="calendar-user-menu-item calendar-reminder-delay">
+                    <span>Rappel avant l&apos;événement</span>
+                    <select
+                      value={reminderMinutes}
+                      onChange={(e) => changeReminderMinutes(Number(e.target.value))}
+                    >
+                      {reminders.REMINDER_MINUTES_OPTIONS.map((minutes) => (
+                        <option key={minutes} value={minutes}>
+                          {minutes < 60 ? `${minutes} min` : `${minutes / 60} h`}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
                 )}
                 <button type="button" role="menuitem" className="calendar-user-menu-item" onClick={handleSignOut}>
                   <LogOut />

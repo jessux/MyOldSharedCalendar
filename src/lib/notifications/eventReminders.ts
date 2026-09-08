@@ -7,13 +7,14 @@ import type { CalendarEvent } from "@/types/database";
  * deja charges par l'app.
  *
  * Trois types de rappel, tous rejoues a chaque `scheduleEventReminders` :
- * - 30 min avant chaque evenement.
+ * - X minutes avant chaque evenement, X etant choisi par l'utilisateur
+ *   (REMINDER_MINUTES_OPTIONS, 30 min par defaut).
  * - La veille au soir ("VEILLE_HOUR"), ton un peu taquin.
  * - Un recap hebdomadaire le dimanche soir, calcule a partir des evenements
- *   deja charges par l'app pour les 7 jours a venir. Comme il n'est pas
- *   recalcule pendant que l'app est fermee, un evenement ajoute dans la
- *   semaine apres la derniere ouverture de l'app n'y apparaitra que si
- *   l'app est rouverte avant le dimanche.
+ *   deja charges par l'app pour les 7 jours a venir. Ce recap est en plus
+ *   rafraichi juste avant de se declencher par le runner de fond (voir
+ *   backgroundRecap.ts et public/runners/background-recap.js), pour rester
+ *   a jour meme si l'app n'a pas ete rouverte depuis un moment.
  */
 
 const CHANNEL_EVENTS = "myoldsharedcalendar-events";
@@ -21,11 +22,18 @@ const CHANNEL_EVENTS = "myoldsharedcalendar-events";
 // regenere a chaque build CI via `npx cap add android`, un drawable commite
 // n'y survivrait pas. On laisse @capacitor/local-notifications utiliser
 // l'icone par defaut du plugin.
-const REMINDER_MINUTES_BEFORE = 30;
+const DEFAULT_REMINDER_MINUTES = 30;
+/** Choix proposes a l'utilisateur pour le rappel avant chaque evenement. */
+export const REMINDER_MINUTES_OPTIONS = [15, 30, 60, 120, 300] as const;
 const VEILLE_HOUR = 20;
 const RECAP_WEEKDAY = 0; // dimanche
 const RECAP_HOUR = 18;
 const ENABLED_KEY = "myoldsharedcalendar-reminders-enabled";
+const REMINDER_MINUTES_KEY = "myoldsharedcalendar-reminder-minutes-before";
+/** Doit rester identique a RECAP_ID dans public/runners/background-recap.js :
+ *  c'est lui qui permet au runner de fond de remplacer cette meme notification
+ *  planifiee avec un contenu a jour avant qu'elle ne se declenche. */
+const RECAP_ID = 42424242;
 
 export interface RemindersStatus {
   supported: boolean;
@@ -84,6 +92,20 @@ async function setEnabledPref(enabled: boolean): Promise<void> {
   await Preferences.set({ key: ENABLED_KEY, value: String(enabled) });
 }
 
+export async function getReminderMinutes(): Promise<number> {
+  const { Preferences } = await import("@capacitor/preferences");
+  const { value } = await Preferences.get({ key: REMINDER_MINUTES_KEY });
+  const parsed = value ? parseInt(value, 10) : NaN;
+  return REMINDER_MINUTES_OPTIONS.includes(parsed as (typeof REMINDER_MINUTES_OPTIONS)[number])
+    ? parsed
+    : DEFAULT_REMINDER_MINUTES;
+}
+
+export async function setReminderMinutes(minutes: number): Promise<void> {
+  const { Preferences } = await import("@capacitor/preferences");
+  await Preferences.set({ key: REMINDER_MINUTES_KEY, value: String(minutes) });
+}
+
 export async function status(): Promise<RemindersStatus> {
   const supported = await isNative();
   if (!supported) return { supported: false, granted: false, enabled: false };
@@ -127,8 +149,6 @@ function notificationId(kind: string, key: string): number {
   return Math.abs(hash) || 1;
 }
 
-const RECAP_ID = notificationId("recap", "weekly");
-
 /** getPending() ne renvoie pas le channelId : on retrouve nos propres
  *  notifications planifiees via leurs IDs, memorises a part. */
 const SCHEDULED_IDS_KEY = "myoldsharedcalendar-reminders-scheduled-ids";
@@ -167,6 +187,12 @@ const RECAP_INTROS = [
   "Prepare le cafe"
 ];
 
+function formatReminderDelay(minutes: number): string {
+  if (minutes < 60) return `Debute dans ${minutes} minutes`;
+  const hours = minutes / 60;
+  return `Debute dans ${hours} heure${hours > 1 ? "s" : ""}`;
+}
+
 function pickRecapIntro(): string {
   const weekOfYear = Math.floor(Date.now() / (7 * 24 * 60 * 60 * 1000));
   return RECAP_INTROS[weekOfYear % RECAP_INTROS.length];
@@ -187,6 +213,7 @@ export async function scheduleEventReminders(events: CalendarEvent[]): Promise<v
 
   await cancelAll();
 
+  const reminderMinutes = await getReminderMinutes();
   const now = new Date();
   const timedEvents = events.filter((e) => !e.all_day);
 
@@ -206,13 +233,13 @@ export async function scheduleEventReminders(events: CalendarEvent[]): Promise<v
     const startsAt = new Date(event.starts_at);
     const extra: ReminderExtra = { date: event.starts_at };
 
-    const reminderAt = new Date(startsAt.getTime() - REMINDER_MINUTES_BEFORE * 60_000);
+    const reminderAt = new Date(startsAt.getTime() - reminderMinutes * 60_000);
     if (reminderAt.getTime() > now.getTime()) {
       notifications.push({
         id: notificationId("reminder", event.id),
         channelId: CHANNEL_EVENTS,
         title: event.title,
-        body: `Debute dans ${REMINDER_MINUTES_BEFORE} minutes`,
+        body: formatReminderDelay(reminderMinutes),
         schedule: { at: reminderAt },
         extra,
         autoCancel: true
@@ -300,7 +327,7 @@ export async function test(): Promise<void> {
           id: 999999,
           channelId: CHANNEL_EVENTS,
           title: "Rappels actives",
-          body: "30 min avant, la veille au soir, et un recap chaque dimanche."
+          body: "Avant chaque evenement, la veille au soir, et un recap chaque dimanche."
         }
       ]
     });
