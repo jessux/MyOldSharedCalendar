@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type MouseEvent, type TouchEvent } from "react";
 import clsx from "clsx";
+import { addDays, addMonths, addWeeks, addYears } from "date-fns";
 import { buildMonthGrid, monthLabel, nextMonth, previousMonth } from "@/lib/calendar/monthGrid";
 import type { SchoolZone } from "@/lib/calendar/schoolHolidays";
 import { MonthHeader } from "./calendar/MonthHeader";
@@ -236,7 +237,28 @@ export function CalendarApp({ userId }: CalendarAppProps) {
         .eq("id", formState.event.id);
       if (error) throw new Error(error.message);
     } else {
-      const { error } = await supabase.from("events").insert({
+      const occurrenceCount =
+        values.recurrenceFreq === "none" ? 1 : Math.max(2, values.recurrenceCount);
+      const advance = (base: Date, step: number) => {
+        switch (values.recurrenceFreq) {
+          case "daily":
+            return addDays(base, step);
+          case "weekly":
+            return addWeeks(base, step);
+          case "monthly":
+            return addMonths(base, step);
+          case "yearly":
+            return addYears(base, step);
+          default:
+            return base;
+        }
+      };
+      const recurrenceRule =
+        values.recurrenceFreq === "none"
+          ? null
+          : `FREQ=${values.recurrenceFreq.toUpperCase()};COUNT=${occurrenceCount}`;
+
+      const rows = Array.from({ length: occurrenceCount }, (_, index) => ({
         calendar_id: calendars[0].id,
         household_id: household.id,
         created_by: userId,
@@ -244,12 +266,34 @@ export function CalendarApp({ userId }: CalendarAppProps) {
         description: values.description || null,
         category: values.category,
         all_day: values.allDay,
-        starts_at: new Date(startsAt).toISOString(),
-        ends_at: new Date(endsAt).toISOString()
-      });
+        starts_at: advance(new Date(startsAt), index).toISOString(),
+        ends_at: advance(new Date(endsAt), index).toISOString(),
+        recurrence_rule: recurrenceRule
+      }));
+
+      const { error } = await supabase.from("events").insert(rows);
       if (error) throw new Error(error.message);
     }
 
+    setFormState(null);
+    await refresh();
+  };
+
+  const handleDuplicate = async () => {
+    if (formState?.mode !== "edit" || !household) return;
+    const source = formState.event;
+    const { error } = await supabase.from("events").insert({
+      calendar_id: source.calendar_id,
+      household_id: household.id,
+      created_by: userId,
+      title: source.title,
+      description: source.description,
+      category: source.category,
+      all_day: source.all_day,
+      starts_at: source.starts_at,
+      ends_at: source.ends_at
+    });
+    if (error) throw new Error(error.message);
     setFormState(null);
     await refresh();
   };
@@ -435,6 +479,7 @@ export function CalendarApp({ userId }: CalendarAppProps) {
           onCancel={() => setFormState(null)}
           onSubmit={handleCreateOrUpdate}
           onDelete={formState.mode === "edit" ? handleDelete : undefined}
+          onDuplicate={formState.mode === "edit" ? handleDuplicate : undefined}
         />
       )}
 

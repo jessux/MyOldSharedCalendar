@@ -6,6 +6,16 @@ import { format } from "date-fns";
 import type { CalendarEvent, EventCategory, HouseholdMember } from "@/types/database";
 import { CATEGORY_OPTIONS, CategoryIcon } from "./categoryIcons";
 
+export type RecurrenceFrequency = "none" | "daily" | "weekly" | "monthly" | "yearly";
+
+export const RECURRENCE_OPTIONS: { value: RecurrenceFrequency; label: string }[] = [
+  { value: "none", label: "Ne se répète pas" },
+  { value: "daily", label: "Tous les jours" },
+  { value: "weekly", label: "Toutes les semaines" },
+  { value: "monthly", label: "Tous les mois" },
+  { value: "yearly", label: "Tous les ans" }
+];
+
 export interface EventFormValues {
   title: string;
   description: string;
@@ -14,6 +24,8 @@ export interface EventFormValues {
   allDay: boolean;
   startTime: string;
   endTime: string;
+  recurrenceFreq: RecurrenceFrequency;
+  recurrenceCount: number;
 }
 
 interface EventFormSheetProps {
@@ -23,6 +35,7 @@ interface EventFormSheetProps {
   onCancel: () => void;
   onSubmit: (values: EventFormValues) => Promise<void>;
   onDelete?: () => Promise<void>;
+  onDuplicate?: () => Promise<void>;
 }
 
 export function EventFormSheet({
@@ -30,7 +43,8 @@ export function EventFormSheet({
   existingEvent,
   onCancel,
   onSubmit,
-  onDelete
+  onDelete,
+  onDuplicate
 }: EventFormSheetProps) {
   const [title, setTitle] = useState(existingEvent?.title ?? "");
   const [description, setDescription] = useState(existingEvent?.description ?? "");
@@ -45,7 +59,10 @@ export function EventFormSheet({
   const [endTime, setEndTime] = useState(
     existingEvent && !existingEvent.all_day ? format(new Date(existingEvent.ends_at), "HH:mm") : "10:00"
   );
+  const [recurrenceFreq, setRecurrenceFreq] = useState<RecurrenceFrequency>("none");
+  const [recurrenceCount, setRecurrenceCount] = useState(4);
   const [submitting, setSubmitting] = useState(false);
+  const [duplicating, setDuplicating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async () => {
@@ -56,11 +73,34 @@ export function EventFormSheet({
     setError(null);
     setSubmitting(true);
     try {
-      await onSubmit({ title: title.trim(), description, category, date, allDay, startTime, endTime });
+      await onSubmit({
+        title: title.trim(),
+        description,
+        category,
+        date,
+        allDay,
+        startTime,
+        endTime,
+        recurrenceFreq,
+        recurrenceCount
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Une erreur est survenue.");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleDuplicate = async () => {
+    if (!onDuplicate) return;
+    setError(null);
+    setDuplicating(true);
+    try {
+      await onDuplicate();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Une erreur est survenue.");
+    } finally {
+      setDuplicating(false);
     }
   };
 
@@ -172,11 +212,52 @@ export function EventFormSheet({
           />
         </label>
 
+        {!existingEvent && (
+          <div className="flex flex-col gap-2">
+            <span className="text-xs font-semibold text-ink/60 uppercase">Périodicité</span>
+            <select
+              value={recurrenceFreq}
+              onChange={(e) => setRecurrenceFreq(e.target.value as RecurrenceFrequency)}
+              className="rounded-lg border border-line px-3 py-2 text-ink bg-white"
+            >
+              {RECURRENCE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            {recurrenceFreq !== "none" && (
+              <label className="flex items-center justify-between rounded-lg border border-line px-3 py-2">
+                <span className="text-sm text-ink">Nombre d&apos;occurrences</span>
+                <input
+                  type="number"
+                  min={2}
+                  max={52}
+                  value={recurrenceCount}
+                  onChange={(e) => setRecurrenceCount(Math.min(52, Math.max(2, Number(e.target.value) || 2)))}
+                  className="w-16 rounded-lg border border-line px-2 py-1 text-ink bg-white text-right"
+                />
+              </label>
+            )}
+          </div>
+        )}
+
+        {existingEvent && onDuplicate && (
+          <button
+            type="button"
+            onClick={handleDuplicate}
+            disabled={duplicating}
+            className="mt-2 rounded-lg border border-line text-ink py-2 text-sm font-semibold disabled:opacity-40"
+          >
+            {duplicating ? "..." : "Dupliquer l'événement"}
+          </button>
+        )}
+
         {existingEvent && onDelete && (
           <button
             type="button"
             onClick={onDelete}
-            className="mt-2 rounded-lg border border-red-300 text-red-600 py-2 text-sm font-semibold"
+            className="rounded-lg border border-red-300 text-red-600 py-2 text-sm font-semibold"
           >
             Supprimer l'événement
           </button>
