@@ -122,14 +122,21 @@ jobs:
           # de s'authentifier depuis la WebView de l'app, on passe donc par le
           # navigateur systeme (@capacitor/browser) puis on revient via ce schema.
           if ! grep -q 'android:scheme="fr.kahlouche.myoldsharedcalendar"' android/app/src/main/AndroidManifest.xml; then
-            sed -i '0,/<\/intent-filter>/{/<\/intent-filter>/a\
-    <intent-filter>\
-        <action android:name="android.intent.action.VIEW" />\
-        <category android:name="android.intent.category.DEFAULT" />\
-        <category android:name="android.intent.category.BROWSABLE" />\
-        <data android:scheme="fr.kahlouche.myoldsharedcalendar" android:host="auth-callback" />\
-    </intent-filter>
-          }' android/app/src/main/AndroidManifest.xml
+            awk '
+              /<\/intent-filter>/ && !done {
+                print
+                print "    <intent-filter>"
+                print "        <action android:name=\"android.intent.action.VIEW\" />"
+                print "        <category android:name=\"android.intent.category.DEFAULT\" />"
+                print "        <category android:name=\"android.intent.category.BROWSABLE\" />"
+                print "        <data android:scheme=\"fr.kahlouche.myoldsharedcalendar\" android:host=\"auth-callback\" />"
+                print "    </intent-filter>"
+                done=1
+                next
+              }
+              { print }
+            ' android/app/src/main/AndroidManifest.xml > android/app/src/main/AndroidManifest.xml.tmp
+            mv android/app/src/main/AndroidManifest.xml.tmp android/app/src/main/AndroidManifest.xml
           fi
 
           cat >> android/app/build.gradle <<'EOF'
